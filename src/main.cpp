@@ -6,11 +6,19 @@
 #include "EdgeLightingEffect/EffectManager.h"
 #include "EdgeLightingEffect/EdgeLightingEffect.h"
 #include "EdgeLightingEffect/MagneticWaveEffect.h"
+#include "EdgeLightingEffect/MagneticRectangleEffect.h"
+
+struct DemoEffects {
+    EdgeLightingEffect edgeLight;
+    MagneticWaveEffect wave1, wave2, wave3;
+    MagneticRectangleEffect rectWave[4];
+};
 
 enum class DemoMode {
     EdgeLighting,
     MagneticWaveSingle,
     MagneticWaveMulti,
+    MagneticRectangle,
     AllEffects,
     Count
 };
@@ -23,36 +31,39 @@ static const char* modeName(DemoMode mode) {
         case DemoMode::EdgeLighting:       return "Edge Lighting";
         case DemoMode::MagneticWaveSingle: return "Magnetic Wave (1)";
         case DemoMode::MagneticWaveMulti:  return "Magnetic Waves (3)";
+        case DemoMode::MagneticRectangle:  return "Magnetic Rectangle";
         case DemoMode::AllEffects:         return "All Effects";
         default:                           return "Unknown";
     }
 }
 
 static void setupMode(DemoMode mode, EffectManager& manager,
-                      EdgeLightingEffect& edgeLight,
-                      MagneticWaveEffect& wave1,
-                      MagneticWaveEffect& wave2,
-                      MagneticWaveEffect& wave3,
-                      GLFWwindow* window) {
+                      DemoEffects& effects, GLFWwindow* window) {
     manager.clearEffects();
 
     switch (mode) {
         case DemoMode::EdgeLighting:
-            manager.addEffect(&edgeLight);
+            manager.addEffect(&effects.edgeLight);
             break;
         case DemoMode::MagneticWaveSingle:
-            manager.addEffect(&wave1);
+            manager.addEffect(&effects.wave1);
             break;
         case DemoMode::MagneticWaveMulti:
-            manager.addEffect(&wave1);
-            manager.addEffect(&wave2);
-            manager.addEffect(&wave3);
+            manager.addEffect(&effects.wave1);
+            manager.addEffect(&effects.wave2);
+            manager.addEffect(&effects.wave3);
+            break;
+        case DemoMode::MagneticRectangle:
+            for (int i = 0; i < 4; i++)
+                manager.addEffect(&effects.rectWave[i]);
             break;
         case DemoMode::AllEffects:
-            manager.addEffect(&wave1);
-            manager.addEffect(&wave2);
-            manager.addEffect(&wave3);
-            manager.addEffect(&edgeLight);
+            manager.addEffect(&effects.wave1);
+            manager.addEffect(&effects.wave2);
+            manager.addEffect(&effects.wave3);
+            for (int i = 0; i < 4; i++)
+                manager.addEffect(&effects.rectWave[i]);
+            manager.addEffect(&effects.edgeLight);
             break;
         default:
             break;
@@ -111,32 +122,41 @@ int main() {
     int fbW, fbH;
     glfwGetFramebufferSize(window, &fbW, &fbH);
 
-    EdgeLightingEffect edgeLight;
-    MagneticWaveEffect wave1, wave2, wave3;
+    DemoEffects effects;
 
-    wave1.setSpeed(1.5f);
-    wave1.setAmplitude(25.0f);
-    wave1.setWaveCount(5);
-    wave1.setLineWidth(5.0f);
-    wave1.setColorShift(0.0f);
+    effects.wave1.setSpeed(1.5f);
+    effects.wave1.setAmplitude(25.0f);
+    effects.wave1.setWaveCount(5);
+    effects.wave1.setLineWidth(5.0f);
+    effects.wave1.setColorShift(0.0f);
 
-    wave2.setSpeed(2.0f);
-    wave2.setAmplitude(18.0f);
-    wave2.setWaveCount(4);
-    wave2.setLineWidth(4.0f);
-    wave2.setColorShift(0.33f);
+    effects.wave2.setSpeed(2.0f);
+    effects.wave2.setAmplitude(18.0f);
+    effects.wave2.setWaveCount(4);
+    effects.wave2.setLineWidth(4.0f);
+    effects.wave2.setColorShift(0.33f);
 
-    wave3.setSpeed(1.0f);
-    wave3.setAmplitude(35.0f);
-    wave3.setWaveCount(7);
-    wave3.setLineWidth(6.0f);
-    wave3.setColorShift(0.66f);
+    effects.wave3.setSpeed(1.0f);
+    effects.wave3.setAmplitude(35.0f);
+    effects.wave3.setWaveCount(7);
+    effects.wave3.setLineWidth(6.0f);
+    effects.wave3.setColorShift(0.66f);
+
+    for (int i = 0; i < 4; i++) {
+        float t = i / 3.0f;
+        effects.rectWave[i].setSpeed(6.0f + t * 10.0f);
+        effects.rectWave[i].setAmplitude(15.0f + t * 10.0f);
+        effects.rectWave[i].setLineWidth(5.0f - t * 2.0f);
+        effects.rectWave[i].setCornerRadius(40.0f);
+        effects.rectWave[i].setColorShift(t * 0.5f);
+        effects.rectWave[i].setScale(0.3f + t * 0.35f);
+    }
 
     EffectManager manager;
     double lastNotifyTime = glfwGetTime();
     srand(static_cast<unsigned int>(time(nullptr)));
 
-    setupMode(s_currentMode, manager, edgeLight, wave1, wave2, wave3, window);
+    setupMode(s_currentMode, manager, effects, window);
 
     double lastTime = glfwGetTime();
     while (!glfwWindowShouldClose(window)) {
@@ -154,13 +174,13 @@ int main() {
         }
 
         if (s_modeChanged) {
-            setupMode(s_currentMode, manager, edgeLight, wave1, wave2, wave3, window);
+            setupMode(s_currentMode, manager, effects, window);
             s_modeChanged = false;
         }
 
         if (s_currentMode == DemoMode::EdgeLighting || s_currentMode == DemoMode::AllEffects) {
             if (currentTime - lastNotifyTime > 4.0 + (rand() % 5)) {
-                edgeLight.triggerNotification();
+                effects.edgeLight.triggerNotification();
                 lastNotifyTime = currentTime;
             }
         }
