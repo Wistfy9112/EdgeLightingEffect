@@ -59,9 +59,17 @@ struct MagneticRectangleEffect::Impl {
             PerimeterPoint pp = perimeter.getPointAtDistance(dist);
 
             // Wave displacement along normal direction
-            float wave = sin(dist * 0.04f + elapsedTime * speed) * amplitude;
-            wave += sin(dist * 0.08f + elapsedTime * speed * 0.6f) * amplitude * 0.35f;
-            wave += sin(dist * 0.015f + elapsedTime * speed * 1.3f) * amplitude * 0.2f;
+            // Use integer cycle counts to ensure seamless periodicity around the closed perimeter
+            const float twoPi = 6.2831853f;
+            float cycles0 = round(totalLen * 0.04f / twoPi);
+            float cycles1 = round(totalLen * 0.08f / twoPi);
+            float cycles2 = round(totalLen * 0.015f / twoPi);
+            if (cycles0 < 1.0f) cycles0 = 1.0f;
+            if (cycles1 < 1.0f) cycles1 = 1.0f;
+            if (cycles2 < 1.0f) cycles2 = 1.0f;
+            float wave = sin(t * cycles0 * twoPi + elapsedTime * speed) * amplitude;
+            wave += sin(t * cycles1 * twoPi + elapsedTime * speed * 0.6f) * amplitude * 0.35f;
+            wave += sin(t * cycles2 * twoPi + elapsedTime * speed * 1.3f) * amplitude * 0.2f;
 
             glm::vec2 displaced = pp.position + pp.normal * wave;
 
@@ -79,7 +87,9 @@ struct MagneticRectangleEffect::Impl {
                 col = glm::mix(glm::vec3(0.4f, 0.0f, 0.8f), glm::vec3(0.0f, 0.8f, 1.0f), s);
             }
 
-            float alpha = 0.5f + 0.4f * sin(dist * 0.02f + elapsedTime * 0.8f);
+            float cyclesA = round(totalLen * 0.02f / twoPi);
+            if (cyclesA < 1.0f) cyclesA = 1.0f;
+            float alpha = 0.5f + 0.4f * sin(t * cyclesA * twoPi + elapsedTime * 0.8f);
             if (alpha > 1.0f) alpha = 1.0f;
 
             float halfW = lineWidth * 0.5f;
@@ -109,6 +119,10 @@ struct MagneticRectangleEffect::Impl {
             vertices.push_back(v1);
             vertices.push_back(v2);
         }
+
+        // Close the triangle strip back to the start to eliminate head-tail gap
+        vertices.push_back(vertices[0]);
+        vertices.push_back(vertices[1]);
     }
 };
 
