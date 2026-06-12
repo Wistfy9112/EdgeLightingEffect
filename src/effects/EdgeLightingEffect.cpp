@@ -126,6 +126,10 @@ struct EdgeLightingEffect::Impl {
             vertices.push_back(v1);
             vertices.push_back(v2);
         }
+
+        // Close the triangle strip back to the start to eliminate head-tail gap
+        vertices.push_back(vertices[0]);
+        vertices.push_back(vertices[1]);
     }
 };
 
