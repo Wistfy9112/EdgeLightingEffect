@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="vi">
+<html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -17,6 +17,7 @@
   <a href="#neonring">NeonWaveRingEffect</a>
   <a href="#magneticwave">MagneticWaveEffect</a>
   <a href="#magneticrect">MagneticRectangleEffect</a>
+  <a href="#audioreactive">AudioReactiveEffect</a>
   <a href="#shader">Shader System</a>
   <a href="#perimeter">Perimeter System</a>
 </nav>
@@ -288,6 +289,90 @@ When pulsing (pulse > 0.01):
 </div>
 
 <img class="screenshot" src="image/magnetic_rectangle.png" alt="MagneticRectangleEffect">
+</section>
+
+<section id="audioreactive">
+<h2>AudioReactiveEdgeLightingEffect</h2>
+<p>
+  A luminous particle system combined with a spectrum visualizer, reacting to audio in real time.
+  Particle count, size, brightness and velocity are all driven by music signal,
+  creating the sensation of energy radiating from the edges of the interface.
+</p>
+
+<h3>Particle Trail Effect</h3>
+<p>Particles leave luminous trails along the frame edges:</p>
+<ul>
+  <li>Spawned along the frame perimeter and top edge (trail).</li>
+  <li>Fall downward or stretch vertically.</li>
+  <li>Fade out over time (<code>alpha = lifeRatio²</code>).</li>
+  <li>Count and brightness increase with the beat (bass, treble, kick).</li>
+  <li>Each particle renders 2 layers: large glow (additive) + bright core.</li>
+</ul>
+
+<h3>Spectrum Visualizer</h3>
+<p>Light bars run along the inner bottom edge of the frame, each representing a frequency band:</p>
+<ul>
+  <li>Strong frequency → taller, brighter bar.</li>
+  <li>Weak frequency → shorter, dimmer bar.</li>
+  <li>Smooth motion via per-band exponential moving average (EMA).</li>
+</ul>
+
+<h3>Gradient Shift Animation</h3>
+<p>Spectrum colours cycle continuously on a slow period (~333s):</p>
+<pre><code>Purple (0.6, 0.0, 1.0) → Blue (0.0, 0.3, 1.0) → Pink (1.0, 0.0, 0.5)
+         ↓
+Blue ← Pink ← Purple ← Pink ← Blue ← Purple
+         ↓ (triangle wave, smooth reversal)</code></pre>
+
+<h3>Layer Stack</h3>
+<div class="layer-stack">
+  <div class="layer" style="background:#1a3a2a; border:1px solid #2a5a3a;">
+    <span><span class="badge additive">Additive</span> Outer glow (widest)</span>
+    <span class="tag">uAlphaScale: 0.3–0.6</span>
+  </div>
+  <div class="layer" style="background:#2a3a1a; border:1px solid #4a5a2a;">
+    <span><span class="badge additive">Additive</span> Mid glow</span>
+    <span class="tag">uAlphaScale: 0.5–0.8</span>
+  </div>
+  <div class="layer" style="background:#1a2a3a; border:1px solid #2a4a6a;">
+    <span><span class="badge additive">Additive</span> Spectrum bars</span>
+    <span class="tag">uAlphaScale: 0.9</span>
+  </div>
+  <div class="layer" style="background:#1a1a2a; border:1px solid #3a2a4a;">
+    <span><span class="badge alpha">Alpha</span> Core line</span>
+    <span class="tag">GL_ONE_MINUS_SRC_ALPHA</span>
+  </div>
+  <div class="layer" style="background:#2a1a3a; border:1px solid #4a2a6a;">
+    <span><span class="badge additive">Additive</span> Particles (perimeter + trail)</span>
+    <span class="tag">uAlphaScale: 1.0</span>
+  </div>
+</div>
+
+<h3>Audio Input</h3>
+<pre><code>effect.setSpectrum(fftData, 64);  // spectrum bars (64 bands)
+effect.setBass(0.8f);              // → perimeter displacement + glow width
+effect.setMid(0.5f);               // → energy bursts along perimeter
+effect.setTreble(0.3f);            // → particle emission rate
+effect.setKick(true);              // → white flash + shake + particle burst
+effect.setVolume(0.7f);            // → glow + alpha intensity</code></pre>
+
+<h3>Particle Physics</h3>
+<pre><code>// Perimeter particles: burst outward from edges
+vel *= 1.0 - 1.2 * dt          // drag
+vel.y -= 20.0 * dt             // gravity
+vel.x += sin(life * 12) * jitter  // organic wobble
+
+// Trail particles: fall from top edge
+vel.y -= 12.0 * dt             // gentle gravity
+vel.x += random * jitter       // horizontal jitter on beat
+alpha = (life / maxLife)²      // fade out</code></pre>
+
+<div class="param-grid">
+  <div class="param-card"><div class="name">setCornerRadius(r)</div><div class="desc">Corner radius (px)</div><div class="default">default: 40</div></div>
+  <div class="param-card"><div class="name">setLineWidth(w)</div><div class="desc">Core line width (px)</div><div class="default">default: 6</div></div>
+  <div class="param-card"><div class="name">setGlowIntensity(i)</div><div class="desc">Glow brightness</div><div class="default">default: 1.0</div></div>
+  <div class="param-card"><div class="name">setSensitivity(s)</div><div class="desc">Audio reactivity scale</div><div class="default">default: 1.0</div></div>
+</div>
 </section>
 
 <section id="shader">
