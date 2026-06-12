@@ -25,9 +25,8 @@ struct EdgeLightingEffect::Impl {
     float shakeIntensity = 0.0f;
     float pulseIntensity = 0.0f;
 
-    float baseGlowWidth = 50.0f;
     float baseCoreWidth = 10.0f;
-    float glowAlphaScale = 0.15f;
+    float glowOverlayWidth = 30.0f;
 
     unsigned int coreVAO = 0, coreVBO = 0;
     int coreVertexCount = 0;
@@ -86,7 +85,7 @@ struct EdgeLightingEffect::Impl {
         return glm::vec4(col, alpha);
     }
 
-    void buildLineGeometry(float lineWidth, std::vector<LineVertex>& vertices) {
+    void buildLineGeometry(float lineWidth, float alphaScale, std::vector<LineVertex>& vertices) {
         const int SEGMENTS = 400;
         float totalLength = perimeter->getTotalLength();
         float halfWidth = lineWidth * 0.5f;
@@ -100,6 +99,7 @@ struct EdgeLightingEffect::Impl {
 
             PerimeterPoint pp = perimeter->getPointAtDistance(dist);
             glm::vec4 color = getGradientColor(t, elapsedTime, pulseIntensity);
+            color.a *= alphaScale;
 
             glm::vec2 basePos = pp.position;
             glm::vec2 offset = pp.normal * halfWidth;
@@ -127,7 +127,6 @@ struct EdgeLightingEffect::Impl {
             vertices.push_back(v2);
         }
 
-        // Close the triangle strip back to the start to eliminate head-tail gap
         vertices.push_back(vertices[0]);
         vertices.push_back(vertices[1]);
     }
@@ -152,7 +151,6 @@ bool EdgeLightingEffect::init(int fbWidth, int fbHeight) {
     m_impl->perimeter = new Perimeter(fbWidth * 0.9f, fbHeight * 0.9f, m_cornerRadius);
     m_impl->updateProjection();
 
-    // Core line VAO
     glGenVertexArrays(1, &m_impl->coreVAO);
     glGenBuffers(1, &m_impl->coreVBO);
     glBindVertexArray(m_impl->coreVAO);
@@ -164,7 +162,6 @@ bool EdgeLightingEffect::init(int fbWidth, int fbHeight) {
     glVertexAttribPointer(2, 4, GL_FLOAT, GL_FALSE, sizeof(LineVertex), (void*)(4 * sizeof(float)));
     glEnableVertexAttribArray(2);
 
-    // Glow line VAO
     glGenVertexArrays(1, &m_impl->glowVAO);
     glGenBuffers(1, &m_impl->glowVBO);
     glBindVertexArray(m_impl->glowVAO);
@@ -195,19 +192,16 @@ void EdgeLightingEffect::update(float deltaTime) {
     p.pulseIntensity *= 1.0f - 1.2f * deltaTime;
     if (p.pulseIntensity < 0.0f) p.pulseIntensity = 0.0f;
 
-    float glowPulse = 1.0f + 0.3f * sin(p.elapsedTime * 1.8f + 2.0f);
-    float currentGlowWidth = p.baseGlowWidth * (glowPulse + p.pulseIntensity * 2.0f);
-    p.glowAlphaScale = 0.08f + 0.12f * sin(p.elapsedTime * 1.2f + 3.0f) + p.pulseIntensity * 0.6f;
-
     std::vector<LineVertex> coreVertices;
-    p.buildLineGeometry(p.baseCoreWidth, coreVertices);
+    p.buildLineGeometry(p.baseCoreWidth, 1.0f, coreVertices);
     p.coreVertexCount = static_cast<int>(coreVertices.size());
 
     glBindBuffer(GL_ARRAY_BUFFER, p.coreVBO);
     glBufferData(GL_ARRAY_BUFFER, coreVertices.size() * sizeof(LineVertex), coreVertices.data(), GL_DYNAMIC_DRAW);
 
+    float glowAlpha = glm::clamp(p.pulseIntensity * 0.5f, 0.0f, 1.0f);
     std::vector<LineVertex> glowVertices;
-    p.buildLineGeometry(currentGlowWidth, glowVertices);
+    p.buildLineGeometry(p.glowOverlayWidth, glowAlpha, glowVertices);
     p.glowVertexCount = static_cast<int>(glowVertices.size());
 
     glBindBuffer(GL_ARRAY_BUFFER, p.glowVBO);
@@ -218,8 +212,6 @@ void EdgeLightingEffect::render() {
     auto& p = *m_impl;
 
     glEnable(GL_BLEND);
-    glBlendFunc(GL_SRC_ALPHA, GL_ONE);
-
     p.lineShader.use();
 
     glm::mat4 proj = p.projection;
@@ -230,14 +222,19 @@ void EdgeLightingEffect::render() {
     }
     p.lineShader.setMat4("uProjection", proj);
 
-    p.lineShader.setFloat("uAlphaScale", p.glowAlphaScale);
-    glBindVertexArray(p.glowVAO);
-    glDrawArrays(GL_TRIANGLE_STRIP, 0, p.glowVertexCount);
-
+    // Core line
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     p.lineShader.setFloat("uAlphaScale", 1.0f);
     glBindVertexArray(p.coreVAO);
     glDrawArrays(GL_TRIANGLE_STRIP, 0, p.coreVertexCount);
+
+    // Glow overlay on top
+    if (p.pulseIntensity > 0.01f) {
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE);
+        p.lineShader.setFloat("uAlphaScale", 0.6f + p.pulseIntensity * 0.4f);
+        glBindVertexArray(p.glowVAO);
+        glDrawArrays(GL_TRIANGLE_STRIP, 0, p.glowVertexCount);
+    }
 }
 
 void EdgeLightingEffect::onResize(int fbWidth, int fbHeight) {
@@ -255,10 +252,6 @@ void EdgeLightingEffect::triggerNotification() {
 
 void EdgeLightingEffect::setCornerRadius(float radius) {
     m_cornerRadius = radius;
-}
-
-void EdgeLightingEffect::setGlowWidth(float width) {
-    m_impl->baseGlowWidth = width;
 }
 
 void EdgeLightingEffect::setCoreWidth(float width) {

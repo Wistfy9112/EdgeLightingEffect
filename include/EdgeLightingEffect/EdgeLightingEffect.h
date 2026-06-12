@@ -15,7 +15,6 @@ public:
 
     void triggerNotification();
     void setCornerRadius(float radius);
-    void setGlowWidth(float width);
     void setCoreWidth(float width);
 
 private:

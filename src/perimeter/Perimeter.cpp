@@ -48,26 +48,29 @@ PerimeterPoint Perimeter::getPointAtDistance(float dist) const {
             if (t < 0.0f) t = 0.0f;
             if (t > 1.0f) t = 1.0f;
 
+            glm::vec2 pos;
+            glm::vec2 tangent;
+
             if (i % 2 == 0) {
                 // Straight segment
                 int edge = i / 2;
                 switch (edge) {
                     case 0: // top: left -> right
-                        return { glm::vec2(-hw + R + t * (m_width - 2.0f * R), hh),
-                                 glm::vec2(1.0f, 0.0f),
-                                 glm::vec2(0.0f, 1.0f) };
+                        pos = glm::vec2(-hw + R + t * (m_width - 2.0f * R), hh);
+                        tangent = glm::vec2(1.0f, 0.0f);
+                        break;
                     case 1: // right: top -> bottom
-                        return { glm::vec2(hw, hh - R - t * (m_height - 2.0f * R)),
-                                 glm::vec2(0.0f, -1.0f),
-                                 glm::vec2(1.0f, 0.0f) };
+                        pos = glm::vec2(hw, hh - R - t * (m_height - 2.0f * R));
+                        tangent = glm::vec2(0.0f, -1.0f);
+                        break;
                     case 2: // bottom: right -> left
-                        return { glm::vec2(hw - R - t * (m_width - 2.0f * R), -hh),
-                                 glm::vec2(-1.0f, 0.0f),
-                                 glm::vec2(0.0f, -1.0f) };
+                        pos = glm::vec2(hw - R - t * (m_width - 2.0f * R), -hh);
+                        tangent = glm::vec2(-1.0f, 0.0f);
+                        break;
                     case 3: // left: bottom -> top
-                        return { glm::vec2(-hw, -hh + R + t * (m_height - 2.0f * R)),
-                                 glm::vec2(0.0f, 1.0f),
-                                 glm::vec2(-1.0f, 0.0f) };
+                        pos = glm::vec2(-hw, -hh + R + t * (m_height - 2.0f * R));
+                        tangent = glm::vec2(0.0f, 1.0f);
+                        break;
                 }
             } else {
                 // Arc segment - quarter circle, clockwise
@@ -92,18 +95,14 @@ PerimeterPoint Perimeter::getPointAtDistance(float dist) const {
                         center = glm::vec2(-hw + R, hh - R);
                         theta = 0.5f * PI * (2.0f - t);
                         break;
-                    default:
-                        return { glm::vec2(0.0f), glm::vec2(1.0f, 0.0f), glm::vec2(0.0f, 1.0f) };
                 }
 
-                glm::vec2 pos = center + R * glm::vec2(cos(theta), sin(theta));
-                // Clockwise tangent
-                glm::vec2 tangent = glm::vec2(sin(theta), -cos(theta));
-                // Outward normal
-                glm::vec2 normal = glm::vec2(cos(theta), sin(theta));
-
-                return { pos, tangent, normal };
+                pos = center + R * glm::vec2(cos(theta), sin(theta));
+                tangent = glm::vec2(sin(theta), -cos(theta));
             }
+
+            glm::vec2 normal = glm::normalize(pos);
+            return { pos, tangent, normal };
         }
         cumulative += m_segLen[i];
     }
