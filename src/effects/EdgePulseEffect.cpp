@@ -43,10 +43,11 @@ struct EdgePulseEffect::Impl {
         if (glowVBO) glDeleteBuffers(1, &glowVBO);
     }
 
-    void updateProjection() {
+    void updateProjection(float offsetX, float offsetY) {
         float w = static_cast<float>(fbWidth);
         float h = static_cast<float>(fbHeight);
-        projection = glm::ortho(-w * 0.5f, w * 0.5f, -h * 0.5f, h * 0.5f);
+        projection = glm::ortho(-w * 0.5f + offsetX, w * 0.5f + offsetX,
+                                -h * 0.5f + offsetY, h * 0.5f + offsetY);
     }
 
     glm::vec4 getGradientColor(float t, float time, float pulse) const {
@@ -133,7 +134,10 @@ struct EdgePulseEffect::Impl {
 };
 
 EdgePulseEffect::EdgePulseEffect()
-    : m_width(0), m_height(0), m_cornerRadius(40.0f), m_impl(new Impl()) {}
+    : m_width(0), m_height(0), m_cornerRadius(40.0f),
+      m_perimeterW(0.0f), m_perimeterH(0.0f),
+      m_offsetX(0.0f), m_offsetY(0.0f),
+      m_impl(new Impl()) {}
 
 EdgePulseEffect::~EdgePulseEffect() { delete m_impl; }
 
@@ -148,8 +152,11 @@ bool EdgePulseEffect::init(int fbWidth, int fbHeight) {
 
     m_impl->fbWidth = fbWidth;
     m_impl->fbHeight = fbHeight;
-    m_impl->perimeter = new Perimeter(fbWidth * 0.9f, fbHeight * 0.9f, m_cornerRadius);
-    m_impl->updateProjection();
+
+    float pw = m_perimeterW > 0.0f ? m_perimeterW : fbWidth * 0.9f;
+    float ph = m_perimeterH > 0.0f ? m_perimeterH : fbHeight * 0.9f;
+    m_impl->perimeter = new Perimeter(pw, ph, m_cornerRadius);
+    m_impl->updateProjection(m_offsetX, m_offsetY);
 
     glGenVertexArrays(1, &m_impl->coreVAO);
     glGenBuffers(1, &m_impl->coreVBO);
@@ -240,7 +247,12 @@ void EdgePulseEffect::onResize(int fbWidth, int fbHeight) {
     m_height = fbHeight;
     m_impl->fbWidth = fbWidth;
     m_impl->fbHeight = fbHeight;
-    m_impl->updateProjection();
+    m_impl->updateProjection(m_offsetX, m_offsetY);
+
+    float pw = m_perimeterW > 0.0f ? m_perimeterW : fbWidth * 0.9f;
+    float ph = m_perimeterH > 0.0f ? m_perimeterH : fbHeight * 0.9f;
+    delete m_impl->perimeter;
+    m_impl->perimeter = new Perimeter(pw, ph, m_cornerRadius);
 }
 
 void EdgePulseEffect::triggerNotification() {
@@ -254,4 +266,21 @@ void EdgePulseEffect::setCornerRadius(float radius) {
 
 void EdgePulseEffect::setCoreWidth(float width) {
     m_impl->baseCoreWidth = width;
+}
+
+void EdgePulseEffect::setPosition(float x, float y) {
+    m_offsetX = x;
+    m_offsetY = y;
+    m_impl->updateProjection(m_offsetX, m_offsetY);
+}
+
+void EdgePulseEffect::setSize(float width, float height) {
+    m_perimeterW = width;
+    m_perimeterH = height;
+    if (m_impl->perimeter) {
+        float pw = m_perimeterW > 0.0f ? m_perimeterW : m_impl->fbWidth * 0.9f;
+        float ph = m_perimeterH > 0.0f ? m_perimeterH : m_impl->fbHeight * 0.9f;
+        delete m_impl->perimeter;
+        m_impl->perimeter = new Perimeter(pw, ph, m_cornerRadius);
+    }
 }

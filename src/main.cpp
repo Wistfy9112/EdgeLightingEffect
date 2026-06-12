@@ -7,32 +7,32 @@
 #include "EdgeLightingEffect/EdgePulseEffect.h"
 #include "EdgeLightingEffect/MagneticWaveEffect.h"
 #include "EdgeLightingEffect/MagneticRectangleEffect.h"
+#include "EdgeLightingEffect/NeonWaveRingEffect.h"
 
 struct DemoEffects {
     EdgePulseEffect edgeLight;
     MagneticWaveEffect wave1, wave2, wave3;
     MagneticRectangleEffect rectWave[4];
+    NeonWaveRingEffect neonRing;
 };
 
 enum class DemoMode {
-    EdgeLighting,
-    MagneticWaveSingle,
+    EdgePulse,
     MagneticWaveMulti,
     MagneticRectangle,
-    AllEffects,
+    NeonWaveRing,
     Count
 };
 
-static DemoMode s_currentMode = DemoMode::EdgeLighting;
+static DemoMode s_currentMode = DemoMode::EdgePulse;
 static bool s_modeChanged = true;
 
 static const char* modeName(DemoMode mode) {
     switch (mode) {
-        case DemoMode::EdgeLighting:       return "Edge Pulse";
-        case DemoMode::MagneticWaveSingle: return "Magnetic Wave (1)";
+        case DemoMode::EdgePulse:          return "Edge Pulse";
         case DemoMode::MagneticWaveMulti:  return "Magnetic Waves (3)";
         case DemoMode::MagneticRectangle:  return "Magnetic Rectangle";
-        case DemoMode::AllEffects:         return "All Effects";
+        case DemoMode::NeonWaveRing:       return "Neon Wave Ring";
         default:                           return "Unknown";
     }
 }
@@ -42,11 +42,8 @@ static void setupMode(DemoMode mode, EffectManager& manager,
     manager.clearEffects();
 
     switch (mode) {
-        case DemoMode::EdgeLighting:
+        case DemoMode::EdgePulse:
             manager.addEffect(&effects.edgeLight);
-            break;
-        case DemoMode::MagneticWaveSingle:
-            manager.addEffect(&effects.wave1);
             break;
         case DemoMode::MagneticWaveMulti:
             manager.addEffect(&effects.wave1);
@@ -57,13 +54,8 @@ static void setupMode(DemoMode mode, EffectManager& manager,
             for (int i = 0; i < 4; i++)
                 manager.addEffect(&effects.rectWave[i]);
             break;
-        case DemoMode::AllEffects:
-            manager.addEffect(&effects.wave1);
-            manager.addEffect(&effects.wave2);
-            manager.addEffect(&effects.wave3);
-            for (int i = 0; i < 4; i++)
-                manager.addEffect(&effects.rectWave[i]);
-            manager.addEffect(&effects.edgeLight);
+        case DemoMode::NeonWaveRing:
+            manager.addEffect(&effects.neonRing);
             break;
         default:
             break;
@@ -73,7 +65,7 @@ static void setupMode(DemoMode mode, EffectManager& manager,
     glfwGetFramebufferSize(window, &fbW, &fbH);
     manager.init(fbW, fbH);
 
-    std::string title = "Edge Lighting Demo - [";
+    std::string title = "Edge Pulse Demo - [";
     title += modeName(mode);
     title += "]  (Left/Right arrows to switch)";
     glfwSetWindowTitle(window, title.c_str());
@@ -104,7 +96,7 @@ int main() {
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
-    GLFWwindow* window = glfwCreateWindow(1280, 720, "Edge Lighting Demo", nullptr, nullptr);
+    GLFWwindow* window = glfwCreateWindow(1280, 720, "Edge Pulse Demo", nullptr, nullptr);
     if (!window) {
         std::cerr << "Failed to create window" << std::endl;
         glfwTerminate();
@@ -152,6 +144,14 @@ int main() {
         effects.rectWave[i].setScale(0.3f + t * 0.35f);
     }
 
+    effects.neonRing.setRadius(200.0f);
+    effects.neonRing.setAmplitude(25.0f);
+    effects.neonRing.setSpeed(2.5f);
+    effects.neonRing.setWaveCount(6.0f);
+    effects.neonRing.setLineWidth(6.0f);
+    effects.neonRing.setGlowWidth(150.0f);
+    effects.neonRing.setGlowIntensity(1.5f);
+
     EffectManager manager;
     double lastNotifyTime = glfwGetTime();
     srand(static_cast<unsigned int>(time(nullptr)));
@@ -178,7 +178,8 @@ int main() {
             s_modeChanged = false;
         }
 
-        if (s_currentMode == DemoMode::EdgeLighting || s_currentMode == DemoMode::AllEffects) {
+        if (s_currentMode == DemoMode::EdgePulse) {
+            
             if (currentTime - lastNotifyTime > 4.0 + (rand() % 5)) {
                 effects.edgeLight.triggerNotification();
                 lastNotifyTime = currentTime;
