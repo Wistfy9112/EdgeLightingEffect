@@ -145,6 +145,43 @@ tr:hover td { background: #12121e; }
 .badge.alpha { background: #1a2a3a; color: #88ddff; }
 .badge.glow { background: #1a3a2a; color: #88ffaa; }
 
+/* Demo Grid */
+.demo-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
+  gap: 16px; margin: 20px 0;
+}
+
+.demo-card {
+  background: #18182a; border: 1px solid #1e1e30;
+  border-radius: 10px; overflow: hidden;
+  transition: border-color 0.2s;
+}
+
+.demo-card:hover {
+  border-color: #3a3a5a;
+}
+
+.demo-card img {
+  display: block; width: 100%; height: auto;
+  border-bottom: 1px solid #1e1e30;
+}
+
+.demo-label {
+  padding: 8px 14px; font-size: 13px;
+  color: #9999bb; font-family: monospace;
+  text-align: center;
+}
+
+/* Section screenshot */
+.screenshot {
+  display: block; width: 100%; height: auto;
+  border: 1px solid #1e1e30;
+  border-radius: 10px;
+  margin: 20px 0;
+  background: #0a0a12;
+}
+
 /* Responsive */
 @media (max-width: 768px) {
   nav { position: static; width: 100%; height: auto; }

@@ -12,6 +12,7 @@
   <h2>Edge Pulse Effects</h2>
   <a href="#overview" class="active">Overview</a>
   <a href="#pipeline">Render Pipeline</a>
+  <a href="#demo">Live Demos</a>
   <a href="#edgepulse">EdgePulseEffect</a>
   <a href="#neonring">NeonWaveRingEffect</a>
   <a href="#magneticwave">MagneticWaveEffect</a>
@@ -73,6 +74,29 @@
   <tr><td>Standard alpha</td><td><code>GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA</code></td><td>Core lines (EdgePulse, NeonWaveRing core)</td></tr>
   <tr><td>Additive</td><td><code>GL_SRC_ALPHA, GL_ONE</code></td><td>Glow overlays, MagneticWave, MagneticRectangle</td></tr>
 </table>
+</section>
+
+<section id="demo">
+<h2>Screenshots</h2>
+<p>Actual OpenGL output for each effect running at 1280×720.</p>
+<div class="demo-grid">
+  <div class="demo-card">
+    <img src="image/edge_pulse.png" alt="EdgePulseEffect screenshot">
+    <div class="demo-label">EdgePulseEffect</div>
+  </div>
+  <div class="demo-card">
+    <img src="image/neon_wave_ring.png" alt="NeonWaveRingEffect screenshot">
+    <div class="demo-label">NeonWaveRingEffect</div>
+  </div>
+  <div class="demo-card">
+    <img src="image/magnetic_wave.png" alt="MagneticWaveEffect screenshot">
+    <div class="demo-label">MagneticWaveEffect</div>
+  </div>
+  <div class="demo-card">
+    <img src="image/magnetic_rectangle.png" alt="MagneticRectangleEffect screenshot">
+    <div class="demo-label">MagneticRectangleEffect</div>
+  </div>
+</div>
 </section>
 
 <section id="edgepulse">
@@ -137,6 +161,8 @@ When pulsing (pulse > 0.01):
   <div class="param-card"><div class="name">setSize(w, h)</div><div class="desc">Explicit rect size</div><div class="default">default: auto 90%</div></div>
   <div class="param-card"><div class="name">triggerNotification()</div><div class="desc">Trigger pulse + shake</div><div class="default">—</div></div>
 </div>
+
+<img class="screenshot" src="image/edge_pulse.png" alt="EdgePulseEffect">
 </section>
 
 <section id="neonring">
@@ -190,6 +216,8 @@ When pulsing (pulse > 0.01):
   <div class="param-card"><div class="name">setGlowWidth(w)</div><div class="desc">Glow ribbon width (px)</div><div class="default">default: 35</div></div>
   <div class="param-card"><div class="name">setGlowIntensity(i)</div><div class="desc">Glow brightness multiplier</div><div class="default">default: 1.0</div></div>
 </div>
+
+<img class="screenshot" src="image/neon_wave_ring.png" alt="NeonWaveRingEffect">
 </section>
 
 <section id="magneticwave">
@@ -221,6 +249,8 @@ When pulsing (pulse > 0.01):
   <div class="param-card"><div class="name">setLineWidth(w)</div><div class="desc">Line thickness (px)</div><div class="default">default: 6</div></div>
   <div class="param-card"><div class="name">setColorShift(s)</div><div class="desc">Hue offset [0–1]</div><div class="default">default: 0</div></div>
 </div>
+
+<img class="screenshot" src="image/magnetic_wave.png" alt="MagneticWaveEffect">
 </section>
 
 <section id="magneticrect">
@@ -256,6 +286,8 @@ When pulsing (pulse > 0.01):
   <div class="param-card"><div class="name">setColorShift(s)</div><div class="desc">Hue offset [0–1]</div><div class="default">default: 0</div></div>
   <div class="param-card"><div class="name">setScale(s)</div><div class="desc">Size scale factor</div><div class="default">default: 0.7</div></div>
 </div>
+
+<img class="screenshot" src="image/magnetic_rectangle.png" alt="MagneticRectangleEffect">
 </section>
 
 <section id="shader">
