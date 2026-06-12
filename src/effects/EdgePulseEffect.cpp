@@ -1,4 +1,4 @@
-#include "EdgeLightingEffect/EdgeLightingEffect.h"
+#include "EdgeLightingEffect/EdgePulseEffect.h"
 #include "core/Shader.h"
 #include "perimeter/Perimeter.h"
 #include <iostream>
@@ -15,7 +15,7 @@ struct LineVertex {
     float r, g, b, a;
 };
 
-struct EdgeLightingEffect::Impl {
+struct EdgePulseEffect::Impl {
     Perimeter* perimeter = nullptr;
     Shader lineShader;
     glm::mat4 projection;
@@ -132,12 +132,12 @@ struct EdgeLightingEffect::Impl {
     }
 };
 
-EdgeLightingEffect::EdgeLightingEffect()
+EdgePulseEffect::EdgePulseEffect()
     : m_width(0), m_height(0), m_cornerRadius(40.0f), m_impl(new Impl()) {}
 
-EdgeLightingEffect::~EdgeLightingEffect() { delete m_impl; }
+EdgePulseEffect::~EdgePulseEffect() { delete m_impl; }
 
-bool EdgeLightingEffect::init(int fbWidth, int fbHeight) {
+bool EdgePulseEffect::init(int fbWidth, int fbHeight) {
     m_width = fbWidth;
     m_height = fbHeight;
 
@@ -176,7 +176,7 @@ bool EdgeLightingEffect::init(int fbWidth, int fbHeight) {
     return true;
 }
 
-void EdgeLightingEffect::update(float deltaTime) {
+void EdgePulseEffect::update(float deltaTime) {
     auto& p = *m_impl;
     p.elapsedTime += deltaTime;
 
@@ -208,7 +208,7 @@ void EdgeLightingEffect::update(float deltaTime) {
     glBufferData(GL_ARRAY_BUFFER, glowVertices.size() * sizeof(LineVertex), glowVertices.data(), GL_DYNAMIC_DRAW);
 }
 
-void EdgeLightingEffect::render() {
+void EdgePulseEffect::render() {
     auto& p = *m_impl;
 
     glEnable(GL_BLEND);
@@ -222,13 +222,11 @@ void EdgeLightingEffect::render() {
     }
     p.lineShader.setMat4("uProjection", proj);
 
-    // Core line
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     p.lineShader.setFloat("uAlphaScale", 1.0f);
     glBindVertexArray(p.coreVAO);
     glDrawArrays(GL_TRIANGLE_STRIP, 0, p.coreVertexCount);
 
-    // Glow overlay on top
     if (p.pulseIntensity > 0.01f) {
         glBlendFunc(GL_SRC_ALPHA, GL_ONE);
         p.lineShader.setFloat("uAlphaScale", 0.6f + p.pulseIntensity * 0.4f);
@@ -237,7 +235,7 @@ void EdgeLightingEffect::render() {
     }
 }
 
-void EdgeLightingEffect::onResize(int fbWidth, int fbHeight) {
+void EdgePulseEffect::onResize(int fbWidth, int fbHeight) {
     m_width = fbWidth;
     m_height = fbHeight;
     m_impl->fbWidth = fbWidth;
@@ -245,15 +243,15 @@ void EdgeLightingEffect::onResize(int fbWidth, int fbHeight) {
     m_impl->updateProjection();
 }
 
-void EdgeLightingEffect::triggerNotification() {
+void EdgePulseEffect::triggerNotification() {
     m_impl->shakeIntensity = 15.0f;
     m_impl->pulseIntensity = 1.5f;
 }
 
-void EdgeLightingEffect::setCornerRadius(float radius) {
+void EdgePulseEffect::setCornerRadius(float radius) {
     m_cornerRadius = radius;
 }
 
-void EdgeLightingEffect::setCoreWidth(float width) {
+void EdgePulseEffect::setCoreWidth(float width) {
     m_impl->baseCoreWidth = width;
 }

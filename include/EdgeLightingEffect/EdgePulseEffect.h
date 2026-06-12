@@ -1,12 +1,12 @@
-#ifndef EDGE_LIGHTING_EFFECT_API_H
-#define EDGE_LIGHTING_EFFECT_API_H
+#ifndef EDGE_PULSE_EFFECT_API_H
+#define EDGE_PULSE_EFFECT_API_H
 
 #include "Effect.h"
 
-class EdgeLightingEffect : public Effect {
+class EdgePulseEffect : public Effect {
 public:
-    EdgeLightingEffect();
-    ~EdgeLightingEffect() override;
+    EdgePulseEffect();
+    ~EdgePulseEffect() override;
 
     bool init(int fbWidth, int fbHeight) override;
     void update(float deltaTime) override;

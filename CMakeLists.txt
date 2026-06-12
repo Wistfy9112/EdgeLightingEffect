@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.10)
-project(EdgeLightingEffect)
+project(EdgePulseEffect)
 
 set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -20,30 +20,30 @@ file(GLOB LIB_SRC_FILES
     src/perimeter/*.cpp
 )
 
-add_library(EdgeLightingEffectLib STATIC ${LIB_SRC_FILES})
-target_include_directories(EdgeLightingEffectLib PUBLIC
+add_library(EdgePulseEffectLib STATIC ${LIB_SRC_FILES})
+target_include_directories(EdgePulseEffectLib PUBLIC
     ${CMAKE_SOURCE_DIR}/include
 )
-target_include_directories(EdgeLightingEffectLib PRIVATE
+target_include_directories(EdgePulseEffectLib PRIVATE
     ${CMAKE_SOURCE_DIR}/src
     ${CMAKE_SOURCE_DIR}/external/include
 )
-target_link_libraries(EdgeLightingEffectLib PUBLIC glfw glad)
+target_link_libraries(EdgePulseEffectLib PUBLIC glfw glad)
 if(WIN32)
-    target_link_libraries(EdgeLightingEffectLib PUBLIC opengl32)
+    target_link_libraries(EdgePulseEffectLib PUBLIC opengl32)
 endif()
 
 # Demo executable
-add_executable(EdgeLightingEffectDemo src/main.cpp)
-target_include_directories(EdgeLightingEffectDemo PRIVATE
+add_executable(EdgePulseEffectDemo src/main.cpp)
+target_include_directories(EdgePulseEffectDemo PRIVATE
     ${CMAKE_SOURCE_DIR}/include
     ${CMAKE_SOURCE_DIR}/external/include
 )
-target_link_libraries(EdgeLightingEffectDemo PRIVATE EdgeLightingEffectLib)
+target_link_libraries(EdgePulseEffectDemo PRIVATE EdgePulseEffectLib)
 
 # Copy assets to the demo executable output directory
-add_custom_command(TARGET EdgeLightingEffectDemo POST_BUILD
+add_custom_command(TARGET EdgePulseEffectDemo POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_directory
     ${CMAKE_SOURCE_DIR}/assets
-    $<TARGET_FILE_DIR:EdgeLightingEffectDemo>/assets
+    $<TARGET_FILE_DIR:EdgePulseEffectDemo>/assets
 )

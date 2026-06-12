@@ -4,12 +4,12 @@
 #include <GLFW/glfw3.h>
 #include <glad/glad.h>
 #include "EdgeLightingEffect/EffectManager.h"
-#include "EdgeLightingEffect/EdgeLightingEffect.h"
+#include "EdgeLightingEffect/EdgePulseEffect.h"
 #include "EdgeLightingEffect/MagneticWaveEffect.h"
 #include "EdgeLightingEffect/MagneticRectangleEffect.h"
 
 struct DemoEffects {
-    EdgeLightingEffect edgeLight;
+    EdgePulseEffect edgeLight;
     MagneticWaveEffect wave1, wave2, wave3;
     MagneticRectangleEffect rectWave[4];
 };
@@ -28,7 +28,7 @@ static bool s_modeChanged = true;
 
 static const char* modeName(DemoMode mode) {
     switch (mode) {
-        case DemoMode::EdgeLighting:       return "Edge Lighting";
+        case DemoMode::EdgeLighting:       return "Edge Pulse";
         case DemoMode::MagneticWaveSingle: return "Magnetic Wave (1)";
         case DemoMode::MagneticWaveMulti:  return "Magnetic Waves (3)";
         case DemoMode::MagneticRectangle:  return "Magnetic Rectangle";
