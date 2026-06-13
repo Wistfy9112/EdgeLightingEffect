@@ -1,0 +1,472 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Edge Pulse Effect - Animation Documentation</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<nav>
+  <h2>Edge Pulse Effects</h2>
+  <a href="#overview" class="active">Overview</a>
+  <a href="#pipeline">Render Pipeline</a>
+  <a href="#demo">Live Demos</a>
+  <a href="#edgepulse">EdgePulseEffect</a>
+  <a href="#neonring">NeonWaveRingEffect</a>
+  <a href="#magneticwave">MagneticWaveEffect</a>
+  <a href="#magneticrect">MagneticRectangleEffect</a>
+  <a href="#audioreactive">AudioReactiveEffect</a>
+  <a href="#shader">Shader System</a>
+  <a href="#perimeter">Perimeter System</a>
+</nav>
+
+<main>
+
+<h1>Edge Pulse Effect</h1>
+<p class="subtitle">OpenGL 3.3 real-time animation system — architecture &amp; visual guide</p>
+
+<section id="overview">
+<h2>Overview</h2>
+<p>
+  The system renders GPU-accelerated animations using a <strong>CPU-side geometry generation</strong> pattern:
+  vertex data is rebuilt each frame in <code>update()</code>, uploaded to the GPU via <code>glBufferData</code>,
+  then drawn in <code>render()</code>. All effects share the same <code>line.vert / line.frag</code> shader pair.
+</p>
+<div class="flow-diagram">
+  <span class="step highlight">update(dt)</span>
+  <span class="arrow">→</span>
+  <span class="step">Build vertices on CPU</span>
+  <span class="arrow">→</span>
+  <span class="step">glBufferData upload</span>
+  <span class="arrow">→</span>
+  <span class="step highlight">render()</span>
+  <span class="arrow">→</span>
+  <span class="step">Bind shader + uniforms</span>
+  <span class="arrow">→</span>
+  <span class="step">glDrawArrays</span>
+</div>
+</section>
+
+<section id="pipeline">
+<h2>Render Pipeline</h2>
+<p>Each frame follows this sequence:</p>
+<pre><code>while (!glfwWindowShouldClose) {
+  glClear()
+  manager.update(dt)           // advance sim, rebuild geometry
+  │  EdgePulseEffect.buildLineGeometry()
+  │  NeonWaveRingEffect.buildRingGeometry()
+  │  MagneticWaveEffect.buildWaveGeometry()
+  │  MagneticRectangleEffect.buildDisplacedGeometry()
+  manager.render()             // bind state + draw
+  │  [per effect]
+  │    glEnable(GL_BLEND)
+  │    shader.use()
+  │    set uniforms (uProjection, uAlphaScale)
+  │    set blend func
+  │    glDrawArrays(GL_TRIANGLE_STRIP)
+  glfwSwapBuffers()
+}</code></pre>
+
+<h3>Blend Modes</h3>
+<table>
+  <tr><th>Mode</th><th>Function</th><th>Used By</th></tr>
+  <tr><td>Standard alpha</td><td><code>GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA</code></td><td>Core lines (EdgePulse, NeonWaveRing core)</td></tr>
+  <tr><td>Additive</td><td><code>GL_SRC_ALPHA, GL_ONE</code></td><td>Glow overlays, MagneticWave, MagneticRectangle</td></tr>
+</table>
+</section>
+
+<section id="demo">
+<h2>Screenshots</h2>
+<p>Actual OpenGL output for each effect running at 1280×720.</p>
+<div class="demo-grid">
+  <div class="demo-card">
+    <img src="image/edge_pulse.png" alt="EdgePulseEffect screenshot">
+    <div class="demo-label">EdgePulseEffect</div>
+  </div>
+  <div class="demo-card">
+    <img src="image/neon_wave_ring.png" alt="NeonWaveRingEffect screenshot">
+    <div class="demo-label">NeonWaveRingEffect</div>
+  </div>
+  <div class="demo-card">
+    <img src="image/magnetic_wave.png" alt="MagneticWaveEffect screenshot">
+    <div class="demo-label">MagneticWaveEffect</div>
+  </div>
+  <div class="demo-card">
+    <img src="image/magnetic_rectangle.png" alt="MagneticRectangleEffect screenshot">
+    <div class="demo-label">MagneticRectangleEffect</div>
+  </div>
+</div>
+</section>
+
+<section id="edgepulse">
+<h2>EdgePulseEffect</h2>
+<p>
+  Notification-style edge pulse: a thin coloured core line tracing a rounded rectangle,
+  with a wider glow overlay that activates on notification.
+</p>
+
+<h3>Layer Stack</h3>
+<div class="layer-stack">
+  <div class="layer" style="background:#1a2a3a; border:1px solid #2a4a6a;">
+    <span><span class="badge alpha">Alpha</span> Core line (10px)</span>
+    <span class="tag">GL_ONE_MINUS_SRC_ALPHA</span>
+  </div>
+  <div class="layer" style="background:#2a1a3a; border:1px solid #4a2a6a;">
+    <span><span class="badge additive">Additive</span> Glow overlay (30px)</span>
+    <span class="tag">pulseIntensity &gt; 0.01</span>
+  </div>
+</div>
+
+<h3>Notification Animation Flow</h3>
+<div class="flow-diagram">
+  <span class="step highlight">triggerNotification()</span>
+  <span class="arrow">→</span>
+  <span class="step">shakeIntensity = 15</span>
+  <span class="arrow">+</span>
+  <span class="step">pulseIntensity = 1.5</span>
+</div>
+<pre><code>// Each frame in update():
+shakeIntensity  *= 1.0 - 4.0 * dt    // decays to 0 in ~4s
+pulseIntensity  *= 1.0 - 1.2 * dt    // decays to 0 in ~2s
+
+// In render() when pulsing:
+glBlendFunc(GL_SRC_ALPHA, GL_ONE);   // additive blend
+uAlphaScale = 0.6 + pulseIntensity * 0.4;
+
+// Screen shake:
+proj = translate(proj, vec3(
+  sin(time * 137) * shake * 0.5,
+  sin(time * 251) * shake * 0.5, 0));</code></pre>
+
+<h3>Gradient Color Animation</h3>
+<p>The colour cycles along the perimeter and shifts over time:</p>
+<pre><code>shiftedT = fmod(t + time * 0.06, 1.0)
+
+stops:
+  0.00 → cyan  (0.0, 0.8, 1.0)
+  0.33 → blue  (0.0, 0.3, 1.0)
+  0.66 → purple(0.4, 0.0, 0.8)
+  1.00 → cyan  (0.0, 0.8, 1.0)
+
+When pulsing (pulse > 0.01):
+  flash = pulse * (0.5 + 0.5 * sin(t * 20 + time * 10))
+  col = mix(col, white, flash * 0.6)
+  alpha = min(alpha + flash * 0.3, 1.0)</code></pre>
+
+<div class="param-grid">
+  <div class="param-card"><div class="name">setCoreWidth(w)</div><div class="desc">Core line width (px)</div><div class="default">default: 10</div></div>
+  <div class="param-card"><div class="name">setCornerRadius(r)</div><div class="desc">Corner radius (px)</div><div class="default">default: 40</div></div>
+  <div class="param-card"><div class="name">setPosition(x, y)</div><div class="desc">Offset from screen center</div><div class="default">default: 0, 0</div></div>
+  <div class="param-card"><div class="name">setSize(w, h)</div><div class="desc">Explicit rect size</div><div class="default">default: auto 90%</div></div>
+  <div class="param-card"><div class="name">triggerNotification()</div><div class="desc">Trigger pulse + shake</div><div class="default">—</div></div>
+</div>
+
+<img class="screenshot" src="image/edge_pulse.png" alt="EdgePulseEffect">
+</section>
+
+<section id="neonring">
+<h2>NeonWaveRingEffect</h2>
+<p>
+  A neon glowing wave ring: circular ribbon with sine-wave radial displacement,
+  rendered in 3 layered passes for a neon glow effect.
+</p>
+
+<h3>Layer Stack</h3>
+<div class="layer-stack">
+  <div class="layer" style="background:#1a3a2a; border:1px solid #2a5a3a;">
+    <span><span class="badge additive">Additive</span> Outer glow (2× glowWidth)</span>
+    <span class="tag">uAlphaScale: 0.4 × intensity</span>
+  </div>
+  <div class="layer" style="background:#2a3a1a; border:1px solid #4a5a2a;">
+    <span><span class="badge additive">Additive</span> Inner glow (glowWidth)</span>
+    <span class="tag">uAlphaScale: 0.6 × intensity</span>
+  </div>
+  <div class="layer" style="background:#1a2a3a; border:1px solid #2a4a6a;">
+    <span><span class="badge alpha">Alpha</span> Core line (lineWidth)</span>
+    <span class="tag">uAlphaScale: 1.0</span>
+  </div>
+</div>
+
+<h3>Wave Displacement</h3>
+<pre><code>for each point around circle:
+  angle = t * 2 * PI
+  wave = amplitude * sin(angle * waveCount + elapsedTime * speed)
+  radius = baseRadius + wave
+
+  pos = (radius * cos(angle), radius * sin(angle))
+  normal = (cos(angle), sin(angle))        // radial outward
+  offset = normal * lineWidth / 2
+
+  // Two vertices per segment (inner + outer edge of ribbon)
+  vertex[0] = pos + offset   (vUV.y = +1)
+  vertex[1] = pos - offset   (vUV.y = -1)</code></pre>
+
+<h3>Gradient</h3>
+<p>5-stop gradient cycling around the ring, shifting over time (<code>elapsedTime * 0.05</code>):</p>
+<pre><code>cyan (0.0, 1.0, 1.0) → purple (0.5, 0.0, 1.0) → pink (1.0, 0.0, 0.5)
+→ orange (1.0, 0.5, 0.0) → cyan (0.0, 1.0, 1.0)</code></pre>
+
+<div class="param-grid">
+  <div class="param-card"><div class="name">setRadius(r)</div><div class="desc">Base circle radius (px)</div><div class="default">default: 200</div></div>
+  <div class="param-card"><div class="name">setAmplitude(a)</div><div class="desc">Wave displacement (px)</div><div class="default">default: 30</div></div>
+  <div class="param-card"><div class="name">setSpeed(s)</div><div class="desc">Wave rotation speed</div><div class="default">default: 2.0</div></div>
+  <div class="param-card"><div class="name">setWaveCount(c)</div><div class="desc">Wave cycles around ring</div><div class="default">default: 5</div></div>
+  <div class="param-card"><div class="name">setLineWidth(w)</div><div class="desc">Core ribbon width (px)</div><div class="default">default: 6</div></div>
+  <div class="param-card"><div class="name">setGlowWidth(w)</div><div class="desc">Glow ribbon width (px)</div><div class="default">default: 35</div></div>
+  <div class="param-card"><div class="name">setGlowIntensity(i)</div><div class="desc">Glow brightness multiplier</div><div class="default">default: 1.0</div></div>
+</div>
+
+<img class="screenshot" src="image/neon_wave_ring.png" alt="NeonWaveRingEffect">
+</section>
+
+<section id="magneticwave">
+<h2>MagneticWaveEffect</h2>
+<p>
+  Multiple horizontal sine-wave lines with additive blending, producing a neon magnetic-field visual.
+</p>
+
+<h3>Wave Geometry</h3>
+<pre><code>for each wave line:
+  y = lineIndex * spacing - halfHeight
+
+  for each x segment:
+    displacement = amplitude * (
+      sin(x * freq1 + time * speed) +
+      sin(x * freq2 + time * speed * 0.7))
+    posY = y + displacement
+
+    // Two vertices (vertical thickness = lineWidth)
+    vertex[0] = (x, posY + halfWidth,  u, +1,  color)
+    vertex[1] = (x, posY - halfWidth,  u, -1,  color)</code></pre>
+
+<p>Each wave line is drawn as a separate <code>glDrawArrays(GL_TRIANGLE_STRIP)</code> call with additive blending for a glowing overlap effect.</p>
+
+<div class="param-grid">
+  <div class="param-card"><div class="name">setSpeed(s)</div><div class="desc">Wave propagation speed</div><div class="default">default: 1.5</div></div>
+  <div class="param-card"><div class="name">setAmplitude(a)</div><div class="desc">Wave height (px)</div><div class="default">default: 30</div></div>
+  <div class="param-card"><div class="name">setWaveCount(n)</div><div class="desc">Number of lines</div><div class="default">default: 6</div></div>
+  <div class="param-card"><div class="name">setLineWidth(w)</div><div class="desc">Line thickness (px)</div><div class="default">default: 6</div></div>
+  <div class="param-card"><div class="name">setColorShift(s)</div><div class="desc">Hue offset [0–1]</div><div class="default">default: 0</div></div>
+</div>
+
+<img class="screenshot" src="image/magnetic_wave.png" alt="MagneticWaveEffect">
+</section>
+
+<section id="magneticrect">
+<h2>MagneticRectangleEffect</h2>
+<p>
+  A rounded rectangle whose perimeter points are displaced outward/inward by a composite sine wave,
+  creating a breathing magnetic contour effect.
+</p>
+
+<h3>Displacement Logic</h3>
+<pre><code>for each point along perimeter:
+  pp = perimeter.getPointAtDistance(dist)
+  wave = amplitude * (
+    sin(dist * freq1 + time * speed) +
+    sin(dist * freq2 + time * speed * 0.7))
+  pos = pp.position + pp.normal * wave
+  offset = pp.normal * lineWidth / 2
+
+  vertex[0] = pos + offset
+  vertex[1] = pos - offset</code></pre>
+
+<p>
+  The effect creates its own <code>Perimeter</code> internally each frame, samples it,
+  applies wave displacement along the normal, and renders as a single triangle strip
+  with additive blending.
+</p>
+
+<div class="param-grid">
+  <div class="param-card"><div class="name">setSpeed(s)</div><div class="desc">Wave speed</div><div class="default">default: 1.2</div></div>
+  <div class="param-card"><div class="name">setAmplitude(a)</div><div class="desc">Displacement (px)</div><div class="default">default: 15</div></div>
+  <div class="param-card"><div class="name">setLineWidth(w)</div><div class="desc">Ribbon width (px)</div><div class="default">default: 4</div></div>
+  <div class="param-card"><div class="name">setCornerRadius(r)</div><div class="desc">Corner radius (px)</div><div class="default">default: 40</div></div>
+  <div class="param-card"><div class="name">setColorShift(s)</div><div class="desc">Hue offset [0–1]</div><div class="default">default: 0</div></div>
+  <div class="param-card"><div class="name">setScale(s)</div><div class="desc">Size scale factor</div><div class="default">default: 0.7</div></div>
+</div>
+
+<img class="screenshot" src="image/magnetic_rectangle.png" alt="MagneticRectangleEffect">
+</section>
+
+<section id="audioreactive">
+<h2>AudioReactiveEdgeLightingEffect</h2>
+<p>
+  A luminous particle system combined with a spectrum visualizer, reacting to audio in real time.
+  Particle count, size, brightness and velocity are all driven by music signal,
+  creating the sensation of energy radiating from the edges of the interface.
+</p>
+
+<h3>Particle Trail Effect</h3>
+<p>Particles leave luminous trails along the frame edges:</p>
+<ul>
+  <li>Spawned along the frame perimeter and top edge (trail).</li>
+  <li>Fall downward or stretch vertically.</li>
+  <li>Fade out over time (<code>alpha = lifeRatio²</code>).</li>
+  <li>Count and brightness increase with the beat (bass, treble, kick).</li>
+  <li>Each particle renders 2 layers: large glow (additive) + bright core.</li>
+</ul>
+
+<h3>Spectrum Visualizer</h3>
+<p>Light bars run along the inner bottom edge of the frame, each representing a frequency band:</p>
+<ul>
+  <li>Strong frequency → taller, brighter bar.</li>
+  <li>Weak frequency → shorter, dimmer bar.</li>
+  <li>Smooth motion via per-band exponential moving average (EMA).</li>
+</ul>
+
+<h3>Gradient Shift Animation</h3>
+<p>Spectrum colours cycle continuously on a slow period (~333s):</p>
+<pre><code>Purple (0.6, 0.0, 1.0) → Blue (0.0, 0.3, 1.0) → Pink (1.0, 0.0, 0.5)
+         ↓
+Blue ← Pink ← Purple ← Pink ← Blue ← Purple
+         ↓ (triangle wave, smooth reversal)</code></pre>
+
+<h3>Layer Stack</h3>
+<div class="layer-stack">
+  <div class="layer" style="background:#1a3a2a; border:1px solid #2a5a3a;">
+    <span><span class="badge additive">Additive</span> Outer glow (widest)</span>
+    <span class="tag">uAlphaScale: 0.3–0.6</span>
+  </div>
+  <div class="layer" style="background:#2a3a1a; border:1px solid #4a5a2a;">
+    <span><span class="badge additive">Additive</span> Mid glow</span>
+    <span class="tag">uAlphaScale: 0.5–0.8</span>
+  </div>
+  <div class="layer" style="background:#1a2a3a; border:1px solid #2a4a6a;">
+    <span><span class="badge additive">Additive</span> Spectrum bars</span>
+    <span class="tag">uAlphaScale: 0.9</span>
+  </div>
+  <div class="layer" style="background:#1a1a2a; border:1px solid #3a2a4a;">
+    <span><span class="badge alpha">Alpha</span> Core line</span>
+    <span class="tag">GL_ONE_MINUS_SRC_ALPHA</span>
+  </div>
+  <div class="layer" style="background:#2a1a3a; border:1px solid #4a2a6a;">
+    <span><span class="badge additive">Additive</span> Particles (perimeter + trail)</span>
+    <span class="tag">uAlphaScale: 1.0</span>
+  </div>
+</div>
+
+<h3>Audio Input</h3>
+<pre><code>effect.setSpectrum(fftData, 64);  // spectrum bars (64 bands)
+effect.setBass(0.8f);              // → perimeter displacement + glow width
+effect.setMid(0.5f);               // → energy bursts along perimeter
+effect.setTreble(0.3f);            // → particle emission rate
+effect.setKick(true);              // → white flash + shake + particle burst
+effect.setVolume(0.7f);            // → glow + alpha intensity</code></pre>
+
+<h3>Particle Physics</h3>
+<pre><code>// Perimeter particles: burst outward from edges
+vel *= 1.0 - 1.2 * dt          // drag
+vel.y -= 20.0 * dt             // gravity
+vel.x += sin(life * 12) * jitter  // organic wobble
+
+// Trail particles: fall from top edge
+vel.y -= 12.0 * dt             // gentle gravity
+vel.x += random * jitter       // horizontal jitter on beat
+alpha = (life / maxLife)²      // fade out</code></pre>
+
+<div class="param-grid">
+  <div class="param-card"><div class="name">setCornerRadius(r)</div><div class="desc">Corner radius (px)</div><div class="default">default: 40</div></div>
+  <div class="param-card"><div class="name">setLineWidth(w)</div><div class="desc">Core line width (px)</div><div class="default">default: 6</div></div>
+  <div class="param-card"><div class="name">setGlowIntensity(i)</div><div class="desc">Glow brightness</div><div class="default">default: 1.0</div></div>
+  <div class="param-card"><div class="name">setSensitivity(s)</div><div class="desc">Audio reactivity scale</div><div class="default">default: 1.0</div></div>
+</div>
+</section>
+
+<section id="shader">
+<h2>Shader System</h2>
+<p>All effects share the same vertex and fragment shaders.</p>
+
+<h3>line.vert</h3>
+<pre><code>#version 330 core
+layout(location = 0) in vec2 aPos;     // position
+layout(location = 1) in vec2 aUV;      // (progress t, ±1 across width)
+layout(location = 2) in vec4 aColor;   // per-vertex RGBA
+
+out vec2 vUV;
+out vec4 vColor;
+
+uniform mat4 uProjection;
+
+void main() {
+    gl_Position = uProjection * vec4(aPos, 0.0, 1.0);
+    vUV = aUV;
+    vColor = aColor;
+}</code></pre>
+
+<h3>line.frag</h3>
+<pre><code>#version 330 core
+in vec2 vUV;
+in vec4 vColor;
+out vec4 FragColor;
+
+uniform float uAlphaScale;
+
+void main() {
+    float dist = abs(vUV.y);                      // 0 at center, 1 at edge
+    float alpha = 1.0 - smoothstep(0.0, 1.0, dist); // soft falloff
+    FragColor = vColor * alpha * uAlphaScale;
+}</code></pre>
+
+<p>
+  The <code>vUV.y</code> coordinate ranges from <strong>-1</strong> (inner edge)
+  to <strong>+1</strong> (outer edge) across the strip width.
+  The fragment shader uses <code>smoothstep</code> to create a
+  <strong>Gaussian-like soft edge</strong>, giving the line a smooth glow appearance.
+  <code>uAlphaScale</code> controls the overall opacity (used for glow dimming).
+</p>
+
+<h3>Vertex Data Layout</h3>
+<table>
+  <tr><th>Location</th><th>Attribute</th><th>Type</th><th>Offset</th><th>Purpose</th></tr>
+  <tr><td>0</td><td>aPos</td><td>vec2</td><td>0</td><td>Screen-space position</td></tr>
+  <tr><td>1</td><td>aUV</td><td>vec2</td><td>8</td><td>.x = perimeter progress [0..1], .y = ±1 strip offset</td></tr>
+  <tr><td>2</td><td>aColor</td><td>vec4</td><td>16</td><td>Per-vertex RGBA colour</td></tr>
+</table>
+</section>
+
+<section id="perimeter">
+<h2>Perimeter System</h2>
+<p>
+  The <code>Perimeter</code> class models a <strong>rounded rectangle</strong> as
+  8 segments (4 straights + 4 quarter-circle arcs). It provides position,
+  tangent, and normal for any cumulative distance along the closed loop.
+</p>
+
+<h3>8-Segment Structure</h3>
+<table>
+  <tr><th>Index</th><th>Type</th><th>Direction</th><th>Length</th></tr>
+  <tr><td>0</td><td>Top straight</td><td>left → right</td><td>W − 2R</td></tr>
+  <tr><td>1</td><td>Top-right arc</td><td>90° clockwise</td><td>π/2 × R</td></tr>
+  <tr><td>2</td><td>Right straight</td><td>top → bottom</td><td>H − 2R</td></tr>
+  <tr><td>3</td><td>Bottom-right arc</td><td>90° clockwise</td><td>π/2 × R</td></tr>
+  <tr><td>4</td><td>Bottom straight</td><td>right → left</td><td>W − 2R</td></tr>
+  <tr><td>5</td><td>Bottom-left arc</td><td>90° clockwise</td><td>π/2 × R</td></tr>
+  <tr><td>6</td><td>Left straight</td><td>bottom → top</td><td>H − 2R</td></tr>
+  <tr><td>7</td><td>Top-left arc</td><td>90° clockwise</td><td>π/2 × R</td></tr>
+</table>
+
+<pre><code>Total length = 2(W + H) − 8R + 2πR
+
+Normal at every point: normalize(position)  // radial from rectangle center
+     → ensures uniform glow width around corners, no fanning</code></pre>
+
+<h3>Point Lookup</h3>
+<pre><code>PerimeterPoint getPointAtDistance(float dist):
+  dist = fmod(dist, totalLength)    // seamless wrapping
+  for each segment i:
+    if dist within segment i:
+      compute local t [0..1]
+      if straight: interpolate position, fixed tangent/normal
+      if arc:      compute theta, position on circle arc
+      normal = normalize(position)  // center-outward
+      return { position, tangent, normal }</code></pre>
+</section>
+
+</main>
+
+<script src="js/main.js"></script>
+</body>
+</html>
