@@ -22,6 +22,10 @@ public:
     void setPosition(float x, float y);
     void setSize(float width, float height);
 
+    void setCometCount(int count);
+    void setCometColor(int index, float r, float g, float b);
+    int getCometCount() const;
+
 private:
     struct Impl;
     Impl* m_impl;

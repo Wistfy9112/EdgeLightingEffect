@@ -171,12 +171,13 @@ int main() {
     effects.audioReactive.setGlowIntensity(1.20f);
     effects.audioReactive.setSensitivity(1.0f);
 
-    effects.energyStream.setSpeed(0.8f);
-    effects.energyStream.setIntensity(1.2f);
+    effects.energyStream.setCometCount(6);
+    effects.energyStream.setSpeed(1.2f);
+    effects.energyStream.setIntensity(1.5f);
     effects.energyStream.setParticleCount(1500);
-    effects.energyStream.setGlowIntensity(1.5f);
+    effects.energyStream.setGlowIntensity(2.0f);
     effects.energyStream.setCornerRadius(40.0f);
-    effects.energyStream.setLineWidth(3.0f);
+    effects.energyStream.setLineWidth(6.0f);
     effects.energyStream.setSize(0.0f, 0.0f);
 
     // Simulated audio state

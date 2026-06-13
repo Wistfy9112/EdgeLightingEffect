@@ -6,6 +6,7 @@
 #include <cmath>
 #include <cstdlib>
 #include <algorithm>
+#include <cstring>
 #include <glad/glad.h>
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
@@ -19,14 +20,14 @@ struct LineVertex {
 };
 
 struct EnergyParticle {
-    float t;              // progress along perimeter [0..1]
-    float speed;          // progress per second
-    int direction;        // +1 = clockwise, -1 = counter-clockwise
+    float t;
+    float speed;
+    int direction;
     float life;
     float maxLife;
     float size;
     float brightness;
-    float radialOffset;   // offset from perimeter normal (organic wobble)
+    float radialOffset;
     glm::vec3 color;
     float phase;
 
@@ -56,6 +57,47 @@ public:
     }
 };
 
+struct Comet {
+    float t;
+    int direction;
+    glm::vec3 color;
+    float brightness;
+    float phase;
+
+    static const int MAX_TRAIL = 120;
+
+private:
+    glm::vec2 m_trail[MAX_TRAIL];
+    int m_trailCount = 0;
+    int m_trailHead = 0;
+
+public:
+    Comet() : t(0), direction(1), color(1.0f), brightness(1.0f), phase(0) {}
+
+    void pushTrail(glm::vec2 p) {
+        m_trail[m_trailHead] = p;
+        m_trailHead = (m_trailHead + 1) % MAX_TRAIL;
+        if (m_trailCount < MAX_TRAIL) m_trailCount++;
+    }
+
+    int trailCount() const { return m_trailCount; }
+    int trailCapacity() const { return MAX_TRAIL; }
+
+    glm::vec2 getTrail(int i) const {
+        int idx = (m_trailHead - m_trailCount + i + MAX_TRAIL) % MAX_TRAIL;
+        return m_trail[idx];
+    }
+};
+
+static const glm::vec3 COMET_PALETTE[6] = {
+    glm::vec3(0.3f, 0.8f, 1.0f),
+    glm::vec3(1.0f, 0.7f, 0.2f),
+    glm::vec3(1.0f, 0.3f, 0.8f),
+    glm::vec3(0.5f, 1.0f, 0.3f),
+    glm::vec3(1.0f, 0.5f, 0.1f),
+    glm::vec3(0.7f, 0.3f, 1.0f)
+};
+
 struct EnergyStreamEffect::Impl {
     Shader lineShader;
     Shader particleShader;
@@ -77,12 +119,14 @@ struct EnergyStreamEffect::Impl {
     Perimeter* perimeter = nullptr;
 
     struct Stream {
-        int direction; // +1 or -1
+        int direction;
         std::vector<EnergyParticle> particles;
         float emitAccum = 0.0f;
     };
-    Stream streamCW;  // clockwise
-    Stream streamCCW; // counter-clockwise
+    Stream streamCW;
+    Stream streamCCW;
+
+    std::vector<Comet> comets;
 
     unsigned int particleVAO = 0, particleVBO = 0;
     int particleVertexCount = 0;
@@ -122,8 +166,7 @@ struct EnergyStreamEffect::Impl {
     }
 
     glm::vec2 getPosition(float t) const {
-        PerimeterPoint pp = perimeter->getPointAtProgress(t);
-        return pp.position;
+        return perimeter->getPointAtProgress(t).position;
     }
 
     glm::vec3 randomColor() const {
@@ -178,38 +221,91 @@ struct EnergyStreamEffect::Impl {
 
             float lifeRatio = p.life / p.maxLife;
 
-            // Speed oscillation
             float speedPulse = 0.8f + 0.2f * sin(elapsedTime * 2.0f + p.phase);
             float tStep = p.speed * speedPulse * dt * static_cast<float>(p.direction);
             p.t += tStep;
             if (p.t > 1.0f) p.t -= 1.0f;
             if (p.t < 0.0f) p.t += 1.0f;
 
-            // Radial wobble
             p.radialOffset += sin(elapsedTime * (1.5f + p.phase * 0.5f) + p.phase) * 8.0f * dt;
             p.radialOffset *= 0.98f;
 
-            // Compute world position from perimeter
             glm::vec2 base = getPosition(p.t);
             glm::vec2 normal = glm::normalize(base);
             glm::vec2 pos = base + normal * p.radialOffset;
 
-            // Random bursts (merge/split simulation)
             if (randFloat() < 0.015f) {
                 p.radialOffset += (randFloat() - 0.5f) * 20.0f;
             }
 
             p.pushTrail(pos);
 
-            // Brightness pulsing
             float pulse = 0.6f + 0.4f * sin(elapsedTime * (1.5f + p.phase * 0.5f) + p.phase);
             float fadeIn = std::min(lifeRatio * 4.0f, 1.0f);
             p.brightness = (0.4f + 0.6f * lifeRatio) * pulse * fadeIn;
         }
     }
 
-    void buildParticleQuads(std::vector<LineVertex>& vertices, float sizeScale, float alphaMul, float brightnessMul) {
-        vertices.clear();
+    void updateComets(float dt) {
+        for (size_t i = 0; i < comets.size(); i++) {
+            Comet& c = comets[i];
+            float tStep = speed * 0.25f * dt * static_cast<float>(c.direction);
+            c.t += tStep;
+            if (c.t > 1.0f) c.t -= 1.0f;
+            if (c.t < 0.0f) c.t += 1.0f;
+            glm::vec2 pos = getPosition(c.t);
+            c.pushTrail(pos);
+            float pulse = 0.6f + 0.4f * sin(elapsedTime * 2.0f + c.phase);
+            c.brightness = (0.9f + 0.1f * pulse) * intensity;
+        }
+    }
+
+    void buildStreamTrailGeometry(std::vector<LineVertex>& vertices, bool clear) {
+        if (clear) vertices.clear();
+
+        auto addTrail = [&](const EnergyParticle& p) {
+            int count = p.trailCount();
+            if (count < 2) return;
+
+            for (int i = 0; i < count - 1; i++) {
+                float t = static_cast<float>(i) / (count - 1);
+                float t1 = static_cast<float>(i + 1) / (count - 1);
+
+                float alpha0 = (1.0f - t) * p.brightness * 0.5f;
+                float alpha1 = (1.0f - t1) * p.brightness * 0.5f;
+
+                if (alpha0 < 0.01f && alpha1 < 0.01f) continue;
+
+                glm::vec2 p0 = p.getTrail(i);
+                glm::vec2 p1 = p.getTrail(i + 1);
+                glm::vec2 diff = p1 - p0;
+                if (glm::length(diff) < 0.001f) continue;
+                glm::vec2 dir = diff / glm::length(diff);
+                glm::vec2 perp(-dir.y, dir.x);
+
+                float trailW = lineWidth * 0.5f + p.size * 0.2f;
+                glm::vec3 col = p.color * p.brightness;
+
+                LineVertex v[6];
+                v[0] = { p0.x - perp.x * trailW, p0.y - perp.y * trailW, 0, -1, col.r, col.g, col.b, alpha0 };
+                v[1] = { p0.x + perp.x * trailW, p0.y + perp.y * trailW, 0,  1, col.r, col.g, col.b, alpha0 };
+                v[2] = { p1.x - perp.x * trailW, p1.y - perp.y * trailW, 0, -1, col.r, col.g, col.b, alpha1 };
+                v[3] = { p1.x - perp.x * trailW, p1.y - perp.y * trailW, 0, -1, col.r, col.g, col.b, alpha1 };
+                v[4] = { p0.x + perp.x * trailW, p0.y + perp.y * trailW, 0,  1, col.r, col.g, col.b, alpha0 };
+                v[5] = { p1.x + perp.x * trailW, p1.y + perp.y * trailW, 0,  1, col.r, col.g, col.b, alpha1 };
+
+                vertices.insert(vertices.end(), v, v + 6);
+            }
+        };
+
+        for (const auto& p : streamCW.particles)
+            addTrail(p);
+        for (const auto& p : streamCCW.particles)
+            addTrail(p);
+    }
+
+    void buildStreamParticleQuads(std::vector<LineVertex>& vertices, bool clear, float sizeScale, float alphaMul, float brightnessMul) {
+        if (clear) vertices.clear();
 
         auto addQuad = [&](const EnergyParticle& p) {
             float alpha = std::min(p.life / p.maxLife * 2.5f, 1.0f) * alphaMul;
@@ -241,46 +337,76 @@ struct EnergyStreamEffect::Impl {
             addQuad(p);
     }
 
-    void buildTrailGeometry(std::vector<LineVertex>& vertices) {
-        vertices.clear();
+    void buildCometTrailGeometry(std::vector<LineVertex>& vertices, bool clear) {
+        if (clear) vertices.clear();
 
-        auto addTrail = [&](const EnergyParticle& p) {
-            int count = p.trailCount();
-            if (count < 2) return;
+        for (size_t ci = 0; ci < comets.size(); ci++) {
+            const Comet& c = comets[ci];
+            int count = c.trailCount();
+            if (count < 2) continue;
 
             for (int i = 0; i < count - 1; i++) {
-                float t = static_cast<float>(i) / (count - 1);
-                float t1 = static_cast<float>(i + 1) / (count - 1);
+                float headness0 = static_cast<float>(i) / (count - 1);
+                float headness1 = static_cast<float>(i + 1) / (count - 1);
 
-                float alpha0 = (1.0f - t) * p.brightness * 0.5f;
-                float alpha1 = (1.0f - t1) * p.brightness * 0.5f;
+                float alpha0 = headness0 * headness0 * c.brightness * 1.2f;
+                float alpha1 = headness1 * headness1 * c.brightness * 1.2f;
 
-                if (alpha0 < 0.01f && alpha1 < 0.01f) continue;
+                if (alpha0 < 0.005f && alpha1 < 0.005f) continue;
 
-                glm::vec2 p0 = p.getTrail(i);
-                glm::vec2 p1 = p.getTrail(i + 1);
-                glm::vec2 dir = glm::normalize(p1 - p0);
+                glm::vec2 p0 = c.getTrail(i);
+                glm::vec2 p1 = c.getTrail(i + 1);
+
+                glm::vec2 diff = p1 - p0;
+                float segLen = glm::length(diff);
+                if (segLen < 0.001f) continue;
+                glm::vec2 dir = diff / segLen;
                 glm::vec2 perp(-dir.y, dir.x);
 
-                float trailW = lineWidth * 0.5f + p.size * 0.2f;
-                glm::vec3 col = p.color * p.brightness;
+                float spread0 = 1.0f + (1.0f - headness0) * 8.0f;
+                float spread1 = 1.0f + (1.0f - headness1) * 8.0f;
+                float w0 = lineWidth * spread0;
+                float w1 = lineWidth * spread1;
+
+                glm::vec3 col = c.color * c.brightness;
 
                 LineVertex v[6];
-                v[0] = { p0.x - perp.x * trailW, p0.y - perp.y * trailW, 0, -1, col.r, col.g, col.b, alpha0 };
-                v[1] = { p0.x + perp.x * trailW, p0.y + perp.y * trailW, 0,  1, col.r, col.g, col.b, alpha0 };
-                v[2] = { p1.x - perp.x * trailW, p1.y - perp.y * trailW, 0, -1, col.r, col.g, col.b, alpha1 };
-                v[3] = { p1.x - perp.x * trailW, p1.y - perp.y * trailW, 0, -1, col.r, col.g, col.b, alpha1 };
-                v[4] = { p0.x + perp.x * trailW, p0.y + perp.y * trailW, 0,  1, col.r, col.g, col.b, alpha0 };
-                v[5] = { p1.x + perp.x * trailW, p1.y + perp.y * trailW, 0,  1, col.r, col.g, col.b, alpha1 };
+                v[0] = { p0.x - perp.x * w0, p0.y - perp.y * w0, 0, -1, col.r, col.g, col.b, alpha0 };
+                v[1] = { p0.x + perp.x * w0, p0.y + perp.y * w0, 0,  1, col.r, col.g, col.b, alpha0 };
+                v[2] = { p1.x - perp.x * w1, p1.y - perp.y * w1, 0, -1, col.r, col.g, col.b, alpha1 };
+                v[3] = { p1.x - perp.x * w1, p1.y - perp.y * w1, 0, -1, col.r, col.g, col.b, alpha1 };
+                v[4] = { p0.x + perp.x * w0, p0.y + perp.y * w0, 0,  1, col.r, col.g, col.b, alpha0 };
+                v[5] = { p1.x + perp.x * w1, p1.y + perp.y * w1, 0,  1, col.r, col.g, col.b, alpha1 };
 
                 vertices.insert(vertices.end(), v, v + 6);
             }
-        };
+        }
+    }
 
-        for (const auto& p : streamCW.particles)
-            addTrail(p);
-        for (const auto& p : streamCCW.particles)
-            addTrail(p);
+    void buildCometCoreQuads(std::vector<LineVertex>& vertices, bool clear, float sizeMul, float alphaMul) {
+        if (clear) vertices.clear();
+
+        for (size_t ci = 0; ci < comets.size(); ci++) {
+            const Comet& c = comets[ci];
+            float alpha = c.brightness * alphaMul;
+            if (alpha < 0.01f) continue;
+
+            float halfSize = 10.0f * sizeMul;
+            glm::vec2 pos = getPosition(c.t);
+            glm::vec3 col = c.color * (c.brightness * 2.0f);
+
+            float x = pos.x, y = pos.y;
+
+            LineVertex v[6];
+            v[0] = { x - halfSize, y - halfSize, -1, -1, col.r, col.g, col.b, alpha };
+            v[1] = { x + halfSize, y - halfSize,  1, -1, col.r, col.g, col.b, alpha };
+            v[2] = { x - halfSize, y + halfSize, -1,  1, col.r, col.g, col.b, alpha };
+            v[3] = { x + halfSize, y - halfSize,  1, -1, col.r, col.g, col.b, alpha };
+            v[4] = { x - halfSize, y + halfSize, -1,  1, col.r, col.g, col.b, alpha };
+            v[5] = { x + halfSize, y + halfSize,  1,  1, col.r, col.g, col.b, alpha };
+
+            vertices.insert(vertices.end(), v, v + 6);
+        }
     }
 
     void setupVAO(unsigned int vao, unsigned int vbo) {
@@ -320,6 +446,13 @@ bool EnergyStreamEffect::init(int fbWidth, int fbHeight) {
     p.updateProjection();
     p.rebuildPerimeter();
 
+    for (size_t i = 0; i < p.comets.size(); i++) {
+        glm::vec2 pos = p.getPosition(p.comets[i].t);
+        for (int j = 0; j < p.comets[i].MAX_TRAIL; j++) {
+            p.comets[i].pushTrail(pos);
+        }
+    }
+
     glGenVertexArrays(1, &p.particleVAO);
     glGenBuffers(1, &p.particleVBO);
     p.setupVAO(p.particleVAO, p.particleVBO);
@@ -341,20 +474,24 @@ void EnergyStreamEffect::update(float deltaTime) {
 
     p.updateStream(p.streamCW, deltaTime);
     p.updateStream(p.streamCCW, deltaTime);
+    p.updateComets(deltaTime);
 
     std::vector<LineVertex> vertices;
 
-    p.buildTrailGeometry(vertices);
+    p.buildStreamTrailGeometry(vertices, true);
+    p.buildCometTrailGeometry(vertices, false);
     p.trailVertexCount = static_cast<int>(vertices.size());
     glBindBuffer(GL_ARRAY_BUFFER, p.trailVBO);
     glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(LineVertex), vertices.data(), GL_DYNAMIC_DRAW);
 
-    p.buildParticleQuads(vertices, 4.0f, 0.15f * p.glowIntensity, 0.6f);
+    p.buildStreamParticleQuads(vertices, true, 4.0f, 0.15f * p.glowIntensity, 0.6f);
+    p.buildCometCoreQuads(vertices, false, 4.0f, 0.15f * p.glowIntensity);
     p.glowVertexCount = static_cast<int>(vertices.size());
     glBindBuffer(GL_ARRAY_BUFFER, p.glowVBO);
     glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(LineVertex), vertices.data(), GL_DYNAMIC_DRAW);
 
-    p.buildParticleQuads(vertices, 1.0f, 1.0f, 1.0f);
+    p.buildStreamParticleQuads(vertices, true, 1.0f, 1.0f, 1.0f);
+    p.buildCometCoreQuads(vertices, false, 1.0f, 1.0f);
     p.particleVertexCount = static_cast<int>(vertices.size());
     glBindBuffer(GL_ARRAY_BUFFER, p.particleVBO);
     glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(LineVertex), vertices.data(), GL_DYNAMIC_DRAW);
@@ -415,4 +552,35 @@ void EnergyStreamEffect::setSize(float width, float height) {
     m_impl->perimeterW = width;
     m_impl->perimeterH = height;
     m_impl->rebuildPerimeter();
+}
+
+void EnergyStreamEffect::setCometCount(int count) {
+    if (count < 0) count = 0;
+    if (count > 6) count = 6;
+    auto& p = *m_impl;
+    p.comets.resize(count);
+    for (int i = 0; i < count; i++) {
+        p.comets[i] = Comet();
+        p.comets[i].t = static_cast<float>(i) / count;
+        p.comets[i].direction = 1;
+        p.comets[i].phase = 0.0f;
+        p.comets[i].color = COMET_PALETTE[i % 6];
+        if (p.perimeter) {
+            glm::vec2 pos = p.getPosition(p.comets[i].t);
+            for (int j = 0; j < p.comets[i].MAX_TRAIL; j++) {
+                p.comets[i].pushTrail(pos);
+            }
+        }
+    }
+}
+
+void EnergyStreamEffect::setCometColor(int index, float r, float g, float b) {
+    auto& p = *m_impl;
+    if (index >= 0 && index < static_cast<int>(p.comets.size())) {
+        p.comets[index].color = glm::vec3(r, g, b);
+    }
+}
+
+int EnergyStreamEffect::getCometCount() const {
+    return static_cast<int>(m_impl->comets.size());
 }
