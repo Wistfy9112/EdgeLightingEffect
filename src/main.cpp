@@ -160,7 +160,7 @@ int main() {
 
     effects.neonRing.setRadius(200.0f);
     effects.neonRing.setAmplitude(25.0f);
-    effects.neonRing.setSpeed(2.5f);
+    effects.neonRing.setSpeed(200.5f);
     effects.neonRing.setWaveCount(6.0f);
     effects.neonRing.setLineWidth(6.0f);
     effects.neonRing.setGlowWidth(150.0f);
