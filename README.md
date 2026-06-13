@@ -20,7 +20,8 @@ OpenGL 3.3 real-time visual effects framework with notification-style edge pulse
 │   ├── MagneticWaveEffect.h                  # Horizontal sine waves
 │   ├── MagneticRectangleEffect.h             # Displaced perimeter wave
 │   ├── NeonWaveRingEffect.h                  # Neon glowing wave ring
-│   └── AudioReactiveEdgeLightingEffect.h     # Audio-reactive edge lighting
+│   ├── AudioReactiveEdgeLightingEffect.h     # Audio-reactive edge lighting
+│   └── EnergyStreamEffect.h                  # Futuristic energy stream
 └── src/
     ├── main.cpp                              # Demo entry point
     ├── EffectManager.cpp
@@ -30,7 +31,8 @@ OpenGL 3.3 real-time visual effects framework with notification-style edge pulse
     │   ├── MagneticWaveEffect.cpp
     │   ├── MagneticRectangleEffect.cpp
     │   ├── NeonWaveRingEffect.cpp
-    │   └── AudioReactiveEdgeLightingEffect.cpp
+    │   ├── AudioReactiveEdgeLightingEffect.cpp
+    │   └── EnergyStreamEffect.cpp
     └── perimeter/
         └── Perimeter.h / Perimeter.cpp       # Rounded-rectangle path
 ```
@@ -133,6 +135,23 @@ A neon glowing wave ring: a circular ribbon with sine-wave radial displacement, 
 - Outer and inner glow use additive blending (`GL_ONE`), core uses standard alpha (`GL_ONE_MINUS_SRC_ALPHA`).
 - 5-stop gradient cycling cyan → purple → pink → orange → cyan, flowing along the ring over time.
 - Sine wave displacement creates the undulating "energy ring" appearance.
+
+### EnergyStreamEffect
+
+Two luminous electric-blue energy streams traveling horizontally along the upper and lower edges of the frame, composed of glowing particles with bloom halos and luminous trails.
+
+| Method | Description |
+|---|---|
+| `setSpeed(speed)` | Stream flow speed (default 1.0). |
+| `setIntensity(intensity)` | Emission rate multiplier (default 1.0). |
+| `setParticleCount(count)` | Max particles per stream (default 600). |
+| `setGlowIntensity(intensity)` | Bloom brightness multiplier (default 1.0). |
+
+**Visual behaviour:**
+- 3-layer additive rendering: trails (line shader), outer glow (4× size bloom), core particles.
+- Particles emerge from left edge, oscillate vertically with turbulence, and fade out.
+- Random color variation: electric blue, neon cyan, white-hot highlights.
+- Trailing geometry (14-point history) creates smooth luminous streaks.
 
 ### EffectManager
 
