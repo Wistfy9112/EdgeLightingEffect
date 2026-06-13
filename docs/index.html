@@ -18,6 +18,7 @@
   <a href="#magneticwave">MagneticWaveEffect</a>
   <a href="#magneticrect">MagneticRectangleEffect</a>
   <a href="#audioreactive">AudioReactiveEffect</a>
+  <a href="#energystream">EnergyStreamEffect</a>
   <a href="#shader">Shader System</a>
   <a href="#perimeter">Perimeter System</a>
 </nav>
@@ -72,8 +73,8 @@
 <h3>Blend Modes</h3>
 <table>
   <tr><th>Mode</th><th>Function</th><th>Used By</th></tr>
-  <tr><td>Standard alpha</td><td><code>GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA</code></td><td>Core lines (EdgePulse, NeonWaveRing core)</td></tr>
-  <tr><td>Additive</td><td><code>GL_SRC_ALPHA, GL_ONE</code></td><td>Glow overlays, MagneticWave, MagneticRectangle</td></tr>
+  <tr><td>Standard alpha</td><td><code>GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA</code></td><td>Core lines (EdgePulse, NeonWaveRing core, AudioReactive core)</td></tr>
+  <tr><td>Additive</td><td><code>GL_SRC_ALPHA, GL_ONE</code></td><td>Glow overlays, MagneticWave, MagneticRectangle, EnergyStream, Particles</td></tr>
 </table>
 </section>
 
@@ -96,6 +97,14 @@
   <div class="demo-card">
     <img src="image/magnetic_rectangle.png" alt="MagneticRectangleEffect screenshot">
     <div class="demo-label">MagneticRectangleEffect</div>
+  </div>
+  <div class="demo-card">
+    <img src="image/AudioReactiveEdgeLightingEffect.png" alt="AudioReactiveEdgeLightingEffect screenshot">
+    <div class="demo-label">AudioReactiveEdgeLightingEffect</div>
+  </div>
+  <div class="demo-card">
+    <img src="image/EnergyStreamEffect.png" alt="EnergyStreamEffect screenshot">
+    <div class="demo-label">EnergyStreamEffect</div>
   </div>
 </div>
 </section>
@@ -373,6 +382,73 @@ alpha = (life / maxLife)²      // fade out</code></pre>
   <div class="param-card"><div class="name">setGlowIntensity(i)</div><div class="desc">Glow brightness</div><div class="default">default: 1.0</div></div>
   <div class="param-card"><div class="name">setSensitivity(s)</div><div class="desc">Audio reactivity scale</div><div class="default">default: 1.0</div></div>
 </div>
+
+<img class="screenshot" src="image/AudioReactiveEdgeLightingEffect.png" alt="AudioReactiveEdgeLightingEffect">
+</section>
+
+<section id="energystream">
+<h2>EnergyStreamEffect</h2>
+<p>
+  Dual-layer rendering system combining a <strong>particle energy stream</strong> (original)
+  with an optional <strong>comet system</strong> (up to 6 symmetrical comet trails).
+</p>
+
+<h3>Layer Stack</h3>
+<div class="layer-stack">
+  <div class="layer" style="background:#0a1a2a; border:1px solid #1a4a6a;">
+    <span><span class="badge additive">Additive</span> Trails (stream particles + comet tails)</span>
+    <span class="tag">uAlphaScale: 0.6</span>
+  </div>
+  <div class="layer" style="background:#0a2a1a; border:1px solid #1a5a3a;">
+    <span><span class="badge additive">Additive</span> Outer glow (bloom halo + comet glow)</span>
+    <span class="tag">alpha: 0.15 × glowIntensity</span>
+  </div>
+  <div class="layer" style="background:#0a1a3a; border:1px solid #1a3a6a;">
+    <span><span class="badge additive">Additive</span> Core particles + comet bright cores</span>
+    <span class="tag">uAlphaScale: 1.2</span>
+  </div>
+</div>
+
+<h3>Stream Particle System</h3>
+<ul>
+  <li>Two counter-flowing streams (CW + CCW) of glowing particles along the perimeter.</li>
+  <li>Each particle has a 14-point trail, radial wobble, and brightness pulsing.</li>
+  <li>Random color variation: electric blue, neon cyan, white-hot highlights.</li>
+  <li>Occasional random bursts simulate merging and splitting energy.</li>
+</ul>
+
+<h3>Comet System</h3>
+<ul>
+  <li>Add up to <strong>6 comets</strong> via <code>setCometCount(n)</code>.</li>
+  <li>Comets are automatically distributed <strong>symmetrically</strong> around the perimeter (<code>t = i / n</code>).</li>
+  <li>All comets move clockwise at identical speed — maintaining perfect symmetry.</li>
+  <li>Each comet has a <strong>120-point trail</strong> rendered with a comet-tail effect:
+    narrow and bright at the head, spreading wide and fading toward the tail.</li>
+  <li>Trail width increases up to <strong>9×</strong> from head to tail (spread factor: ×8).</li>
+  <li>Alpha falloff is quadratic from head → tail for natural comet appearance.</li>
+  <li>Customizable colors via <code>setCometColor(index, r, g, b)</code>.</li>
+  <li>Default palette (6 colors): cyan, gold, magenta, lime, orange, purple.</li>
+  <li>If <code>setCometCount</code> is never called, no comets render — only the stream particles.</li>
+</ul>
+
+<h3>Render Passes</h3>
+<p>Three additive layers per frame; comets and stream particles share the same buffers:</p>
+<ol>
+  <li><strong>Trails</strong> — line shader, stream particle streaks + comet tail ribbons</li>
+  <li><strong>Outer glow</strong> — particle shader, 4× size, low alpha (bloom halo)</li>
+  <li><strong>Core</strong> — particle shader, full brightness cores</li>
+</ol>
+
+<div class="param-grid">
+  <div class="param-card"><div class="name">setSpeed(s)</div><div class="desc">Stream + comet flow speed</div><div class="default">default: 1.0</div></div>
+  <div class="param-card"><div class="name">setIntensity(i)</div><div class="desc">Emission rate + comet brightness</div><div class="default">default: 1.0</div></div>
+  <div class="param-card"><div class="name">setParticleCount(n)</div><div class="desc">Max particles per stream</div><div class="default">default: 600</div></div>
+  <div class="param-card"><div class="name">setGlowIntensity(i)</div><div class="desc">Bloom brightness multiplier</div><div class="default">default: 1.0</div></div>
+  <div class="param-card"><div class="name">setLineWidth(w)</div><div class="desc">Stream trail + comet tail width</div><div class="default">default: 4</div></div>
+  <div class="param-card"><div class="name">setCometCount(n)</div><div class="desc">Add n symmetrical comets (0–6)</div><div class="default">default: 0</div></div>
+  <div class="param-card"><div class="name">setCometColor(i, r,g,b)</div><div class="desc">Custom comet color</div><div class="default">auto palette</div></div>
+  <div class="param-card"><div class="name">getCometCount()</div><div class="desc">Returns current comet count</div><div class="default">—</div></div>
+</div>
 </section>
 
 <section id="shader">
@@ -406,15 +482,16 @@ uniform float uAlphaScale;
 
 void main() {
     float dist = abs(vUV.y);                      // 0 at center, 1 at edge
-    float alpha = 1.0 - smoothstep(0.0, 1.0, dist); // soft falloff
+    float alpha = 1.0 - smoothstep(0.0, 0.3, dist); // sharp falloff (outer 30%)
     FragColor = vColor * alpha * uAlphaScale;
 }</code></pre>
 
 <p>
   The <code>vUV.y</code> coordinate ranges from <strong>-1</strong> (inner edge)
   to <strong>+1</strong> (outer edge) across the strip width.
-  The fragment shader uses <code>smoothstep</code> to create a
-  <strong>Gaussian-like soft edge</strong>, giving the line a smooth glow appearance.
+  The fragment shader uses <code>smoothstep(0.0, 0.3, dist)</code> to keep the
+  inner <strong>70% of the line fully opaque</strong> with a sharp falloff at the edges —
+  this ensures wide lines stay crisp and bright.
   <code>uAlphaScale</code> controls the overall opacity (used for glow dimming).
 </p>
 

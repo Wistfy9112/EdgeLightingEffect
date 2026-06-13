@@ -9,6 +9,7 @@
 #include "EdgeLightingEffect/MagneticRectangleEffect.h"
 #include "EdgeLightingEffect/NeonWaveRingEffect.h"
 #include "EdgeLightingEffect/AudioReactiveEdgeLightingEffect.h"
+#include "EdgeLightingEffect/EnergyStreamEffect.h"
 
 struct DemoEffects {
     EdgePulseEffect edgeLight;
@@ -16,6 +17,7 @@ struct DemoEffects {
     MagneticRectangleEffect rectWave[4];
     NeonWaveRingEffect neonRing;
     AudioReactiveEdgeLightingEffect audioReactive;
+    EnergyStreamEffect energyStream;
 };
 
 enum class DemoMode {
@@ -24,6 +26,7 @@ enum class DemoMode {
     MagneticRectangle,
     NeonWaveRing,
     AudioReactive,
+    EnergyStream,
     Count
 };
 
@@ -37,6 +40,7 @@ static const char* modeName(DemoMode mode) {
         case DemoMode::MagneticRectangle:  return "Magnetic Rectangle";
         case DemoMode::NeonWaveRing:       return "Neon Wave Ring";
         case DemoMode::AudioReactive:      return "Audio Reactive Edge Lighting";
+        case DemoMode::EnergyStream:       return "Energy Stream";
         default:                           return "Unknown";
     }
 }
@@ -63,6 +67,9 @@ static void setupMode(DemoMode mode, EffectManager& manager,
             break;
         case DemoMode::AudioReactive:
             manager.addEffect(&effects.audioReactive);
+            break;
+        case DemoMode::EnergyStream:
+            manager.addEffect(&effects.energyStream);
             break;
         default:
             break;
@@ -153,7 +160,7 @@ int main() {
 
     effects.neonRing.setRadius(200.0f);
     effects.neonRing.setAmplitude(25.0f);
-    effects.neonRing.setSpeed(2.5f);
+    effects.neonRing.setSpeed(200.5f);
     effects.neonRing.setWaveCount(6.0f);
     effects.neonRing.setLineWidth(6.0f);
     effects.neonRing.setGlowWidth(150.0f);
@@ -164,6 +171,15 @@ int main() {
     effects.audioReactive.setGlowIntensity(1.20f);
     effects.audioReactive.setSensitivity(1.0f);
 
+    effects.energyStream.setCometCount(6);
+    effects.energyStream.setSpeed(1.2f);
+    effects.energyStream.setIntensity(1.5f);
+    effects.energyStream.setParticleCount(1500);
+    effects.energyStream.setGlowIntensity(2.0f);
+    effects.energyStream.setCornerRadius(40.0f);
+    effects.energyStream.setLineWidth(6.0f);
+    effects.energyStream.setSize(0.0f, 0.0f);
+
     // Simulated audio state
     float audioPhase[4] = {0.0f, 0.0f, 0.0f, 0.0f};
     double lastKickTime = glfwGetTime();
@@ -172,6 +188,11 @@ int main() {
     EffectManager manager;
     double lastNotifyTime = glfwGetTime();
     srand(static_cast<unsigned int>(time(nullptr)));
+
+    // FPS counter
+    int frameCount = 0;
+    double fpsTimer = glfwGetTime();
+    float currentFps = 0.0f;
 
     setupMode(s_currentMode, manager, effects, window);
 
@@ -274,6 +295,19 @@ int main() {
 
         glfwSwapBuffers(window);
         glfwPollEvents();
+
+        frameCount++;
+        double now = glfwGetTime();
+        if (now - fpsTimer >= 0.5) {
+            currentFps = frameCount / static_cast<float>(now - fpsTimer);
+            frameCount = 0;
+            fpsTimer = now;
+
+            std::string title = "Edge Pulse Demo - [";
+            title += modeName(s_currentMode);
+            title += "]  FPS: " + std::to_string(static_cast<int>(currentFps + 0.5f));
+            glfwSetWindowTitle(window, title.c_str());
+        }
     }
 
     glfwDestroyWindow(window);

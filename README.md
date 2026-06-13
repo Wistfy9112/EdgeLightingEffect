@@ -7,28 +7,34 @@ OpenGL 3.3 real-time visual effects framework with notification-style edge pulse
 ```
 ├── CMakeLists.txt
 ├── assets/shaders/
-│   ├── line.vert / line.frag         # Active — used by all effects
-│   ├── particle.vert / particle.frag # Reserved — not currently used
+│   ├── line.vert / line.frag         # Active — core line + glow rendering
+│   ├── particle.vert / particle.frag # Active — particles, glow, comet cores
 ├── external/
 │   ├── src/glad.c                    # OpenGL loader
 │   ├── src/glfw/                     # GLFW windowing (built from source)
 │   └── include/                      # glad, GLFW, GLM, stb_image
 ├── include/EdgeLightingEffect/
-│   ├── Effect.h                      # Abstract base class
-│   ├── EffectManager.h               # Effect lifecycle manager
-│   ├── EdgePulseEffect.h             # Notification edge pulse
-│   ├── MagneticWaveEffect.h          # Horizontal sine waves
-│   └── MagneticRectangleEffect.h     # Displaced perimeter wave
+│   ├── Effect.h                              # Abstract base class
+│   ├── EffectManager.h                       # Effect lifecycle manager
+│   ├── EdgePulseEffect.h                     # Notification edge pulse
+│   ├── MagneticWaveEffect.h                  # Horizontal sine waves
+│   ├── MagneticRectangleEffect.h             # Displaced perimeter wave
+│   ├── NeonWaveRingEffect.h                  # Neon glowing wave ring
+│   ├── AudioReactiveEdgeLightingEffect.h     # Audio-reactive edge lighting
+│   └── EnergyStreamEffect.h                  # Futuristic energy stream
 └── src/
-    ├── main.cpp                      # Demo entry point
+    ├── main.cpp                              # Demo entry point
     ├── EffectManager.cpp
-    ├── core/Shader.h / Shader.cpp    # OpenGL shader wrapper
+    ├── core/Shader.h / Shader.cpp            # OpenGL shader wrapper
     ├── effects/
     │   ├── EdgePulseEffect.cpp
     │   ├── MagneticWaveEffect.cpp
-    │   └── MagneticRectangleEffect.cpp
+    │   ├── MagneticRectangleEffect.cpp
+    │   ├── NeonWaveRingEffect.cpp
+    │   ├── AudioReactiveEdgeLightingEffect.cpp
+    │   └── EnergyStreamEffect.cpp
     └── perimeter/
-        └── Perimeter.h / Perimeter.cpp  # Rounded-rectangle path
+        └── Perimeter.h / Perimeter.cpp       # Rounded-rectangle path
 ```
 
 ## Dependencies
@@ -129,6 +135,39 @@ A neon glowing wave ring: a circular ribbon with sine-wave radial displacement, 
 - Outer and inner glow use additive blending (`GL_ONE`), core uses standard alpha (`GL_ONE_MINUS_SRC_ALPHA`).
 - 5-stop gradient cycling cyan → purple → pink → orange → cyan, flowing along the ring over time.
 - Sine wave displacement creates the undulating "energy ring" appearance.
+
+### EnergyStreamEffect
+
+Dual-layer rendering: a particle energy stream (CW + CCW) plus an optional comet system (up to 6 symmetrical comet trails along the perimeter).
+
+| Method | Description |
+|---|---|
+| `setSpeed(speed)` | Stream + comet flow speed (default 1.0). |
+| `setIntensity(intensity)` | Emission rate + comet brightness multiplier (default 1.0). |
+| `setParticleCount(count)` | Max particles per stream (default 600). |
+| `setGlowIntensity(intensity)` | Bloom + comet glow brightness multiplier (default 1.0). |
+| `setLineWidth(width)` | Stream trail + comet tail base width (default 4). |
+| `setCornerRadius(radius)` | Corner radius of the rounded rectangle (default 40). |
+| `setPosition(x, y)` | Offset the rectangle center from screen center (default 0, 0). |
+| `setSize(w, h)` | Explicit rectangle size (default 0 = auto 90% of framebuffer). |
+| `setCometCount(count)` | Add N comets (0–6), auto-distributed symmetrically. No comets if not called. (default 0). |
+| `setCometColor(index, r, g, b)` | Set colour of comet at index (default auto palette: cyan, gold, magenta, lime, orange, purple). |
+| `getCometCount()` | Returns number of active comets. |
+
+**Stream particle behaviour:**
+- Two counter-flowing streams (CW + CCW).
+- Each particle has a 14-point trail, radial wobble, brightness pulsing.
+- Random colour variation: electric blue, neon cyan, white-hot.
+- Occasional random bursts simulating merge/split.
+
+**Comet behaviour:**
+- Comets are distributed evenly (`t = i / count`), all clockwise at identical speed.
+- 120-point trail per comet, rendered with comet-like widening (narrow at head, up to 9× wider at tail).
+- Quadratic alpha falloff from head → tail.
+- Default palette cycles through 6 colours.
+- If `setCometCount` is never called, no comets render.
+
+**3-layer additive rendering:** trails (line shader), outer glow (4× bloom, particle shader), core (particle shader, additive blend).
 
 ### EffectManager
 
@@ -315,4 +354,4 @@ In demo mode, notification auto-fires every 4–9 seconds.
 Shared by all effects:
 
 - **Vertex**: passes position (aPos), UV (aUV where `.y = ±1` across strip width), and per-vertex colour (aColor).
-- **Fragment**: uses `abs(vUV.y)` with `smoothstep(0, 1, dist)` for a soft edge falloff, multiplied by `uAlphaScale` uniform.
+- **Fragment**: uses `abs(vUV.y)` with `smoothstep(0, 0.3, dist)` — inner 70% fully opaque, sharp falloff at edges — keeping wide lines crisp. Multiplied by `uAlphaScale` uniform.

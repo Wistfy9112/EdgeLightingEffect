@@ -3,7 +3,6 @@
 #include "perimeter/Perimeter.h"
 #include <iostream>
 #include <vector>
-#include <cstdlib>
 #include <cmath>
 #include <glad/glad.h>
 #include <glm/glm.hpp>
@@ -21,7 +20,6 @@ struct EdgePulseEffect::Impl {
     glm::mat4 projection;
 
     float elapsedTime = 0.0f;
-    float notifTimer = 2.0f;
     float shakeIntensity = 0.0f;
     float pulseIntensity = 0.0f;
 
@@ -187,13 +185,6 @@ void EdgePulseEffect::update(float deltaTime) {
     auto& p = *m_impl;
     p.elapsedTime += deltaTime;
 
-    p.notifTimer -= deltaTime;
-    if (p.notifTimer <= 0.0f) {
-        p.shakeIntensity = 15.0f;
-        p.pulseIntensity = 1.5f;
-        p.notifTimer = 4.0f + (static_cast<float>(rand()) / RAND_MAX) * 5.0f;
-    }
-
     p.shakeIntensity *= 1.0f - 4.0f * deltaTime;
     if (p.shakeIntensity < 0.0f) p.shakeIntensity = 0.0f;
     p.pulseIntensity *= 1.0f - 1.2f * deltaTime;
@@ -262,10 +253,20 @@ void EdgePulseEffect::triggerNotification() {
 
 void EdgePulseEffect::setCornerRadius(float radius) {
     m_cornerRadius = radius;
+    if (m_impl->perimeter) {
+        float pw = m_perimeterW > 0.0f ? m_perimeterW : m_impl->fbWidth * 0.9f;
+        float ph = m_perimeterH > 0.0f ? m_perimeterH : m_impl->fbHeight * 0.9f;
+        delete m_impl->perimeter;
+        m_impl->perimeter = new Perimeter(pw, ph, m_cornerRadius);
+    }
 }
 
 void EdgePulseEffect::setCoreWidth(float width) {
     m_impl->baseCoreWidth = width;
+}
+
+void EdgePulseEffect::setGlowWidth(float width) {
+    m_impl->glowOverlayWidth = width;
 }
 
 void EdgePulseEffect::setPosition(float x, float y) {
