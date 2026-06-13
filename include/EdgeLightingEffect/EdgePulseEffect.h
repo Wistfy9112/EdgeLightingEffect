@@ -1,5 +1,5 @@
-#ifndef EDGE_PULSE_EFFECT_API_H
-#define EDGE_PULSE_EFFECT_API_H
+#ifndef EDGE_PULSE_EFFECT_H
+#define EDGE_PULSE_EFFECT_H
 
 #include "Effect.h"
 
@@ -16,6 +16,7 @@ public:
     void triggerNotification();
     void setCornerRadius(float radius);
     void setCoreWidth(float width);
+    void setGlowWidth(float width);
     void setPosition(float x, float y);
     void setSize(float width, float height);
 

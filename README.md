@@ -14,21 +14,25 @@ OpenGL 3.3 real-time visual effects framework with notification-style edge pulse
 │   ├── src/glfw/                     # GLFW windowing (built from source)
 │   └── include/                      # glad, GLFW, GLM, stb_image
 ├── include/EdgeLightingEffect/
-│   ├── Effect.h                      # Abstract base class
-│   ├── EffectManager.h               # Effect lifecycle manager
-│   ├── EdgePulseEffect.h             # Notification edge pulse
-│   ├── MagneticWaveEffect.h          # Horizontal sine waves
-│   └── MagneticRectangleEffect.h     # Displaced perimeter wave
+│   ├── Effect.h                              # Abstract base class
+│   ├── EffectManager.h                       # Effect lifecycle manager
+│   ├── EdgePulseEffect.h                     # Notification edge pulse
+│   ├── MagneticWaveEffect.h                  # Horizontal sine waves
+│   ├── MagneticRectangleEffect.h             # Displaced perimeter wave
+│   ├── NeonWaveRingEffect.h                  # Neon glowing wave ring
+│   └── AudioReactiveEdgeLightingEffect.h     # Audio-reactive edge lighting
 └── src/
-    ├── main.cpp                      # Demo entry point
+    ├── main.cpp                              # Demo entry point
     ├── EffectManager.cpp
-    ├── core/Shader.h / Shader.cpp    # OpenGL shader wrapper
+    ├── core/Shader.h / Shader.cpp            # OpenGL shader wrapper
     ├── effects/
     │   ├── EdgePulseEffect.cpp
     │   ├── MagneticWaveEffect.cpp
-    │   └── MagneticRectangleEffect.cpp
+    │   ├── MagneticRectangleEffect.cpp
+    │   ├── NeonWaveRingEffect.cpp
+    │   └── AudioReactiveEdgeLightingEffect.cpp
     └── perimeter/
-        └── Perimeter.h / Perimeter.cpp  # Rounded-rectangle path
+        └── Perimeter.h / Perimeter.cpp       # Rounded-rectangle path
 ```
 
 ## Dependencies

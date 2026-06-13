@@ -27,6 +27,8 @@ public:
     void setLineWidth(float w);
     void setGlowIntensity(float i);
     void setSensitivity(float s);
+    void setPosition(float x, float y);
+    void setSize(float width, float height);
 
 private:
     struct Impl;

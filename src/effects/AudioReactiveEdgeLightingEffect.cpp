@@ -56,6 +56,8 @@ struct AudioReactiveEdgeLightingEffect::Impl {
     Perimeter* perimeter = nullptr;
     float cornerRadius = 40.0f;
     float perimeterW = 0.0f, perimeterH = 0.0f;
+    float m_explicitW = 0.0f, m_explicitH = 0.0f;
+    float m_offsetX = 0.0f, m_offsetY = 0.0f;
 
     // Raw audio input
     float bass = 0.0f;
@@ -136,14 +138,15 @@ struct AudioReactiveEdgeLightingEffect::Impl {
     void updateProjection() {
         float w = static_cast<float>(fbWidth);
         float h = static_cast<float>(fbHeight);
-        projection = glm::ortho(-w * 0.5f, w * 0.5f, -h * 0.5f, h * 0.5f);
+        projection = glm::ortho(-w * 0.5f + m_offsetX, w * 0.5f + m_offsetX,
+                                -h * 0.5f + m_offsetY, h * 0.5f + m_offsetY);
     }
 
     void rebuildPerimeter() {
         float w = static_cast<float>(fbWidth);
         float h = static_cast<float>(fbHeight);
-        float pw = perimeterW > 0.0f ? perimeterW : w * 0.9f;
-        float ph = perimeterH > 0.0f ? perimeterH : h * 0.9f;
+        float pw = m_explicitW > 0.0f ? m_explicitW : w * 0.9f;
+        float ph = m_explicitH > 0.0f ? m_explicitH : h * 0.9f;
         delete perimeter;
         perimeter = new Perimeter(pw, ph, cornerRadius);
         perimeterW = pw;
@@ -763,8 +766,13 @@ void AudioReactiveEdgeLightingEffect::onResize(int fbWidth, int fbHeight) {
 void AudioReactiveEdgeLightingEffect::setSpectrum(const float* data, int count) {
     auto& p = *m_impl;
     p.spectrum.assign(data, data + count);
-    if (p.specSmoothed.size() != static_cast<size_t>(count))
-        p.specSmoothed.assign(count, 0.0f);
+    if (p.specSmoothed.size() != static_cast<size_t>(count)) {
+        if (p.specSmoothed.empty()) {
+            p.specSmoothed.assign(count, 0.0f);
+        } else {
+            p.specSmoothed.resize(count);
+        }
+    }
 }
 
 void AudioReactiveEdgeLightingEffect::setBass(float value) { m_impl->bass = value; }
@@ -780,3 +788,16 @@ void AudioReactiveEdgeLightingEffect::setCornerRadius(float r) {
 void AudioReactiveEdgeLightingEffect::setLineWidth(float w) { m_impl->lineWidth = w; }
 void AudioReactiveEdgeLightingEffect::setGlowIntensity(float i) { m_impl->glowIntensity = i; }
 void AudioReactiveEdgeLightingEffect::setSensitivity(float s) { m_impl->sensitivity = s; }
+
+void AudioReactiveEdgeLightingEffect::setPosition(float x, float y) {
+    m_impl->m_offsetX = x;
+    m_impl->m_offsetY = y;
+    m_impl->updateProjection();
+}
+
+void AudioReactiveEdgeLightingEffect::setSize(float width, float height) {
+    auto& p = *m_impl;
+    p.m_explicitW = width;
+    p.m_explicitH = height;
+    p.rebuildPerimeter();
+}
